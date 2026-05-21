@@ -1,0 +1,11 @@
+[
+  {
+    "reviewtrackers_location_id": "example_location_id",
+    "residence_id": "CW-001",
+    "name": "Chartwell Example Residence",
+    "city": "Toronto, ON",
+    "region": "Ontario Central",
+    "careType": "Retirement Living",
+    "active": true
+  }
+]
