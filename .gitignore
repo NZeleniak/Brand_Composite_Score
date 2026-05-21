@@ -1,2 +1,6 @@
 .env
 reviewtrackers-token.json
+/node_modules
+/.vscode
+/.idea  
+/.next
