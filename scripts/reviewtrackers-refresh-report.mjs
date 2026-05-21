@@ -6,6 +6,7 @@ const USER_AGENT = "ChartwellBrandCompositeScore/1.0";
 const DEFAULT_REPORT_PATH = "Brand Composite Score.html";
 const DEFAULT_OUTPUT_JSON = "data/reviewtrackers-report-data.json";
 const ACCEPT_HAL = "application/hal+json";
+const propertySheetPattern = /^Property_Data_Sheet_(\d{4})\.csv$/i;
 
 const sourceNameMap = {
   google: "Google",
@@ -65,6 +66,7 @@ function parseArgs(argv) {
     reportPath: DEFAULT_REPORT_PATH,
     outputJson: DEFAULT_OUTPUT_JSON,
     residenceMaster: "data/residence-master.json",
+    propertyDataSheet: "",
     useReviewTrackersGroups: true,
     includePerformanceScore: true
   };
@@ -77,12 +79,190 @@ function parseArgs(argv) {
     else if (arg === "--report") options.reportPath = next, index += 1;
     else if (arg === "--output-json") options.outputJson = next, index += 1;
     else if (arg === "--residence-master") options.residenceMaster = next, index += 1;
+    else if (arg === "--property-data-sheet") options.propertyDataSheet = next, index += 1;
     else if (arg === "--account-id") options.accountId = next, index += 1;
     else if (arg === "--no-groups") options.useReviewTrackersGroups = false;
     else if (arg === "--no-performance-score") options.includePerformanceScore = false;
   }
 
   return options;
+}
+
+function discoverPropertyDataSheet(explicitPath = "") {
+  if (explicitPath) return fs.existsSync(explicitPath) ? explicitPath : "";
+
+  const candidates = [
+    ".",
+    "data",
+    process.env.USERPROFILE ? path.join(process.env.USERPROFILE, "Downloads") : ""
+  ].filter(Boolean);
+
+  const matches = [];
+  for (const dir of candidates) {
+    if (!fs.existsSync(dir)) continue;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (!entry.isFile()) continue;
+      const match = entry.name.match(propertySheetPattern);
+      if (!match) continue;
+      const fullPath = path.resolve(dir, entry.name);
+      matches.push({
+        path: fullPath,
+        year: Number(match[1]),
+        mtimeMs: fs.statSync(fullPath).mtimeMs
+      });
+    }
+  }
+
+  matches.sort((a, b) => b.year - a.year || b.mtimeMs - a.mtimeMs);
+  return matches[0]?.path || "";
+}
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const next = text[index + 1];
+
+    if (char === "\"") {
+      if (inQuotes && next === "\"") {
+        cell += "\"";
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === "," && !inQuotes) {
+      row.push(cell);
+      cell = "";
+      continue;
+    }
+
+    if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (char === "\r" && next === "\n") index += 1;
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+      continue;
+    }
+
+    cell += char;
+  }
+
+  if (cell || row.length) {
+    row.push(cell);
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+function cleanText(value) {
+  return String(value ?? "").replace(/\uFFFD/g, "e").trim();
+}
+
+function parseNumber(value) {
+  const cleaned = cleanText(value).replace(/[$,%\s,]/g, "");
+  if (!cleaned || cleaned === "-") return null;
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeResidenceName(name) {
+  return cleanText(name)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\b(chartwell|retirement|residence|residences|community|résidence|retraites|pour|de|des|le|la|les|the|by)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function normalizePropertyRow(row, year) {
+  const occupancyValues = row.slice(33, 45).map(parseNumber).filter((value) => value !== null);
+  const occupancyAverage = occupancyValues.length
+    ? occupancyValues.reduce((sum, value) => sum + value, 0) / occupancyValues.length
+    : null;
+
+  return {
+    year,
+    propertyNumber: cleanText(row[0]),
+    propertyNumberAlt: cleanText(row[1]),
+    propertyRegion: cleanText(row[2]),
+    residenceName: cleanText(row[3]),
+    residentSatisfaction: parseNumber(row[4]),
+    residentNps: parseNumber(row[5]),
+    employeeEngagement: parseNumber(row[9]),
+    employeeNps: parseNumber(row[10]),
+    rssOverallPriorYear: parseNumber(row[14]),
+    rssOverallCurrentYear: parseNumber(row[15]),
+    rssOverallChange: parseNumber(row[16]),
+    rssStaffPriorYear: parseNumber(row[17]),
+    rssStaffCurrentYear: parseNumber(row[18]),
+    rssStaffChange: parseNumber(row[19]),
+    rssLifestylePriorYear: parseNumber(row[20]),
+    rssLifestyleCurrentYear: parseNumber(row[21]),
+    rssLifestyleChange: parseNumber(row[22]),
+    lifestyleProgramsManagerHours: parseNumber(row[23]),
+    activityAideHours: parseNumber(row[24]),
+    driverHours: parseNumber(row[25]),
+    monthlyBudget: parseNumber(row[32]),
+    occupancyAverage,
+    occupancyMonthly: {
+      Jan: parseNumber(row[33]),
+      Feb: parseNumber(row[34]),
+      Mar: parseNumber(row[35]),
+      Apr: parseNumber(row[36]),
+      May: parseNumber(row[37]),
+      Jun: parseNumber(row[38]),
+      Jul: parseNumber(row[39]),
+      Aug: parseNumber(row[40]),
+      Sep: parseNumber(row[41]),
+      Oct: parseNumber(row[42]),
+      Nov: parseNumber(row[43]),
+      Dec: parseNumber(row[44])
+    }
+  };
+}
+
+function loadPropertyData(options) {
+  const propertyPath = discoverPropertyDataSheet(options.propertyDataSheet);
+  if (!propertyPath) {
+    return {
+      sourceFile: null,
+      year: null,
+      rows: []
+    };
+  }
+
+  const year = Number(path.basename(propertyPath).match(propertySheetPattern)?.[1] || new Date().getFullYear());
+  const text = fs.readFileSync(propertyPath, "utf8");
+  const rows = parseCsv(text);
+  const headerIndex = rows.findIndex((row) => {
+    return cleanText(row[0]).toLowerCase() === "property #" &&
+      cleanText(row[2]).toLowerCase() === "region" &&
+      cleanText(row[3]).toLowerCase() === "residence";
+  });
+
+  if (headerIndex === -1) {
+    throw new Error(`Could not find the Property Data Sheet header row in ${propertyPath}`);
+  }
+
+  return {
+    sourceFile: propertyPath,
+    year,
+    rows: rows
+      .slice(headerIndex + 1)
+      .filter((row) => cleanText(row[0]) && cleanText(row[3]))
+      .map((row) => normalizePropertyRow(row, year))
+  };
 }
 
 function isoDateMonthsAgo(months) {
@@ -284,6 +464,7 @@ function aggregateReviews(reviews, options, referenceData = {}) {
   const locationsById = new Map((referenceData.locations || []).filter((location) => !location.deleted_at).map((location) => [location.id, location]));
   const groupsByLocationId = buildGroupMembershipMap(referenceData.groups || [], referenceData.items || []);
   const performanceByLocationId = new Map((referenceData.performanceScores || []).map((score) => [score.location_id, score]));
+  const propertyByName = new Map((referenceData.propertyData?.rows || []).map((row) => [normalizeResidenceName(row.residenceName), row]));
   const locationMap = new Map();
   const bucketMap = new Map();
   const excludedSourceCounts = {};
@@ -302,20 +483,23 @@ function aggregateReviews(reviews, options, referenceData = {}) {
     }
     const groups = groupsByLocationId.get(review.location_id) || [];
     const operatingRegion = master?.region || master?.operatingRegion || deriveOperatingRegion(groups);
+    const locationName = master?.name || apiLocation?.public_name || apiLocation?.name || review.location_name || "Unknown Location";
+    const propertyData = propertyByName.get(normalizeResidenceName(locationName)) || null;
 
     if (!locationMap.has(review.location_id)) {
       locationMap.set(review.location_id, {
         id: master?.residence_id || review.location_id,
         reviewtrackersLocationId: review.location_id,
-        name: master?.name || apiLocation?.public_name || apiLocation?.name || review.location_name || "Unknown Location",
+        name: locationName,
         city: master?.city || [apiLocation?.city, apiLocation?.state].filter(Boolean).join(", ") || normalizeCity(review),
         region: operatingRegion,
         operatingRegion,
         groups,
-        careType: master?.careType || "Unmapped",
+        careType: master?.careType || propertyData?.propertyRegion || "Unmapped",
         active: master?.active ?? apiLocation?.open_status !== "inactive",
         reviewTrackersPerformanceScore: performance?.location_score ?? performance?.score?.overall_score ?? null,
-        reviewTrackersResponseRate: performance?.completed_rate ?? null
+        reviewTrackersResponseRate: performance?.completed_rate ?? null,
+        propertyData
       });
     }
 
@@ -400,6 +584,7 @@ async function main() {
   }
 
   const context = { email, token, accountId };
+  const propertyData = loadPropertyData(options);
   const [reviews, locations, groups, items, performanceScores] = await Promise.all([
     fetchReviews({ ...options, email, token, accountId }),
     fetchLocations(context).catch((error) => {
@@ -419,7 +604,7 @@ async function main() {
       return [];
     }) : []
   ]);
-  const aggregated = aggregateReviews(reviews, options, { locations, groups, items, performanceScores });
+  const aggregated = aggregateReviews(reviews, options, { locations, groups, items, performanceScores, propertyData });
   const operatingRegionCounts = Object.fromEntries(
     [...aggregated.residences.reduce((counts, residence) => {
       const region = residence.operatingRegion || residence.region || "Unmapped";
@@ -431,6 +616,11 @@ async function main() {
     asOfDate: options.publishedBefore,
     residences: aggregated.residences,
     reviewSnapshots: aggregated.reviewSnapshots,
+    propertyData: {
+      sourceFile: propertyData.sourceFile ? path.basename(propertyData.sourceFile) : null,
+      year: propertyData.year,
+      rows: propertyData.rows
+    },
     employerBrand: [
       { source: "Glassdoor", ratingRaw: 3.8, ratingScale: 5, reviewCount: 1, snapshotDate: options.publishedBefore },
       { source: "Indeed", ratingRaw: 3.8, ratingScale: 5, reviewCount: 1, snapshotDate: options.publishedBefore }
@@ -448,7 +638,10 @@ async function main() {
       totalReviewSnapshots: aggregated.reviewSnapshots.length,
       operatingRegionCounts,
       unmappedCount: operatingRegionCounts.Unmapped || 0,
-      excludedNonResidenceSources: aggregated.excludedSourceCounts
+      excludedNonResidenceSources: aggregated.excludedSourceCounts,
+      propertyDataSourceFile: propertyData.sourceFile,
+      propertyRows: propertyData.rows.length,
+      propertyMatches: aggregated.residences.filter((residence) => residence.propertyData).length
     }
   };
 
@@ -468,6 +661,9 @@ async function main() {
   }
   console.log(`Unmapped: ${reportData.validation.unmappedCount}`);
   console.log(`Excluded non-residence sources: ${JSON.stringify(aggregated.excludedSourceCounts)}`);
+  console.log(`Property data sheet: ${propertyData.sourceFile || "not found"}`);
+  console.log(`Property rows: ${propertyData.rows.length}`);
+  console.log(`Property matches: ${reportData.validation.propertyMatches}`);
 }
 
 main().catch((error) => {

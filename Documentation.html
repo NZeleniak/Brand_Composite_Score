@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Brand Composite Score Documentation</title>
+  <style>
+    :root {
+      --bg: #f8f7f9;
+      --panel: #ffffff;
+      --panel-2: #f5edf3;
+      --ink: #1f1f29;
+      --muted: #68707c;
+      --line: #e4dce4;
+      --brand: #9d0f63;
+      --brand-2: #005a9c;
+      --shadow: 0 18px 50px rgba(53, 35, 49, 0.10);
+      --radius: 8px;
+      --max: 1180px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(157, 15, 99, 0.08), rgba(157, 15, 99, 0) 360px),
+        var(--bg);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.45;
+    }
+
+    .page {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 24px 0 18px;
+    }
+
+    .brand-lockup {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: white;
+      background: var(--brand);
+      box-shadow: 0 8px 20px rgba(157, 15, 99, 0.22);
+      flex: 0 0 auto;
+    }
+
+    .brand-title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .brand-subtitle {
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .button-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 0 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--brand);
+      color: #fff;
+      background: var(--brand);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .page-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.78);
+      border-radius: var(--radius);
+    }
+
+    .page-switch a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 30px;
+      padding: 0 10px;
+      border-radius: 6px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .page-switch a.active {
+      color: #fff;
+      background: var(--brand);
+    }
+
+    .hero {
+      padding: 34px;
+      border: 1px solid rgba(157, 15, 99, 0.12);
+      background: linear-gradient(135deg, #ffffff 0%, #fbf1f7 100%);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-top: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 840px;
+      font-size: clamp(34px, 5vw, 62px);
+      line-height: 0.98;
+    }
+
+    .hero p {
+      max-width: 760px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    .section {
+      margin-top: 28px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 14px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.15;
+    }
+
+    .section-note {
+      max-width: 560px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      text-align: right;
+    }
+
+    .grid-2,
+    .grid-3 {
+      display: grid;
+      gap: 14px;
+    }
+
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 22px;
+    }
+
+    .card h3 {
+      margin: 0 0 10px;
+      font-size: 17px;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .card p + p,
+    .card ul + p,
+    .card pre + p {
+      margin-top: 12px;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    li + li { margin-top: 7px; }
+
+    .code {
+      margin: 12px 0 0;
+      padding: 14px;
+      overflow-x: auto;
+      color: #231727;
+      background: #faf6f9;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      font-family: "Courier New", monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .callout {
+      background: var(--panel-2);
+      border-color: #ead8e5;
+    }
+
+    footer {
+      margin: 30px 0 10px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    @media (max-width: 900px) {
+      header, .section-head {
+        display: block;
+      }
+
+      .button-link,
+      .page-switch {
+        margin-top: 16px;
+      }
+
+      .grid-2,
+      .grid-3 {
+        grid-template-columns: 1fr;
+      }
+
+      .section-note {
+        margin-top: 8px;
+        text-align: left;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .page { padding: 16px; }
+      .hero, .card { padding: 18px; }
+      h1 { font-size: 38px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="brand-lockup">
+        <div class="mark" aria-hidden="true">
+          <svg width="25" height="25" viewBox="0 0 24 24" fill="none">
+            <path d="M5 18.5V9.25L12 4l7 5.25v9.25h-5.1v-5.8h-3.8v5.8H5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <p class="brand-title">Chartwell Brand Intelligence</p>
+          <p class="brand-subtitle">Documentation and operating runbook</p>
+        </div>
+      </div>
+      <nav class="page-switch" aria-label="Report pages">
+        <a href="Brand Composite Score.html">Report</a>
+        <a class="active" href="Documentation.html">Documentation</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <h1>Brand Composite Score Documentation</h1>
+        <p>
+          This page explains how the standalone report works, how ReviewTrackers data is refreshed,
+          which local scripts are used, and what environment values are required.
+        </p>
+      </section>
+
+      <section class="section" aria-labelledby="methodologyTitle">
+        <div class="section-head">
+          <h2 id="methodologyTitle">Methodology</h2>
+          <p class="section-note">The refresh script injects ReviewTrackers data into the report; the browser recalculates the views locally.</p>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Calculation</h3>
+            <pre class="code">rating_100 = (rating_raw / rating_scale) * 100
+
+volume_weight = ln(1 + review_count)
+
+weighted_score =
+sum(rating_100 * volume_weight * recency_weight * source_weight)
+/
+sum(volume_weight * recency_weight * source_weight)
+
+brand_composite =
+(resident_experience * 0.70)
++ (employer_brand * 0.20)
++ (trust_friction * 0.10)</pre>
+          </div>
+          <div class="card">
+            <h3>Governance Rules</h3>
+            <ul>
+              <li>Public review ratings are normalized to a common 0-100 scale.</li>
+              <li>Volume weighting uses diminishing returns so large residences do not dominate unfairly.</li>
+              <li>Recency weighting keeps the score current without discarding older signals.</li>
+              <li>Confidence grades use review volume and distinct-source coverage.</li>
+              <li>Google-only scoring is retained as a bias and directional-accuracy control.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="workflowTitle">
+        <div class="section-head">
+          <h2 id="workflowTitle">How It Works</h2>
+          <p class="section-note">The project stays static while the local scripts do the data refresh work.</p>
+        </div>
+        <div class="grid-3">
+          <div class="card">
+            <h3>Report Page</h3>
+            <ul>
+              <li><strong>Brand Composite Score.html</strong> is the dashboard page.</li>
+              <li>It contains embedded CSS, JavaScript, and the latest generated data.</li>
+              <li>It can be opened directly from the filesystem.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Refresh Script</h3>
+            <ul>
+              <li>Reads ReviewTrackers API data using a local token.</li>
+              <li>Aggregates reviews by residence and source.</li>
+              <li>Finds the newest <strong>Property_Data_Sheet_YYYY.csv</strong> and joins it by residence name.</li>
+              <li>Injects the normalized data into the report file.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>No Database</h3>
+            <ul>
+              <li>No Snowflake or other database is required.</li>
+              <li>No API credential is placed in the browser page.</li>
+              <li>The report recalculates filtered views locally.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="apiTitle">
+        <div class="section-head">
+          <h2 id="apiTitle">API Connection</h2>
+          <p class="section-note">All ReviewTrackers calls are read-only except creating the temporary authentication token.</p>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Authentication</h3>
+            <p>The local scripts authenticate with ReviewTrackers using a temporary 7-day token tied to this User-Agent:</p>
+            <pre class="code">ChartwellBrandCompositeScore/1.0</pre>
+            <p>The token is saved locally as <strong>reviewtrackers-token.json</strong> and is ignored by Git.</p>
+          </div>
+          <div class="card">
+            <h3>Read Endpoints</h3>
+            <ul>
+              <li>GET /v2/reviews</li>
+              <li>GET /locations</li>
+              <li>GET /groups</li>
+              <li>GET /items</li>
+              <li>GET /location_score/{account_id}/locations</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="envTitle">
+        <div class="section-head">
+          <h2 id="envTitle">Environment Setup</h2>
+          <p class="section-note">Create this file locally only. Do not commit credentials or tokens.</p>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <h3>.env</h3>
+            <pre class="code">REVIEWTRACKERS_EMAIL=your.email@chartwell.com
+REVIEWTRACKERS_PASSWORD=your_password
+
+# Optional:
+REVIEWTRACKERS_ACCOUNT_ID=account_id
+REVIEWTRACKERS_TOKEN=existing_token</pre>
+          </div>
+          <div class="card callout">
+            <h3>Git Safety</h3>
+            <p>The project ignores these local secret files:</p>
+            <pre class="code">.env
+reviewtrackers-token.json</pre>
+            <p>Before pushing to GitHub, confirm they are not staged.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="scriptsTitle">
+        <div class="section-head">
+          <h2 id="scriptsTitle">Scripts To Run</h2>
+          <p class="section-note">Use these commands from the project folder.</p>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Create Or Renew Token</h3>
+            <pre class="code">node scripts\reviewtrackers-auth.mjs create-token</pre>
+          </div>
+          <div class="card">
+            <h3>Refresh The Report</h3>
+            <pre class="code">node scripts\reviewtrackers-refresh-report.mjs --published-after 2024-05-21 --published-before 2026-05-21</pre>
+            <p>After the command finishes, refresh <strong>Brand Composite Score.html</strong> in the browser.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="propertyTitle">
+        <div class="section-head">
+          <h2 id="propertyTitle">Property Data Sheet</h2>
+          <p class="section-note">This file is manually replaced each year and joined into the report during refresh.</p>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <h3>File Naming</h3>
+            <p>Use this naming pattern:</p>
+            <pre class="code">Property_Data_Sheet_2026.csv
+Property_Data_Sheet_2027.csv</pre>
+            <p>The year can change. The script automatically uses the newest matching file it finds.</p>
+          </div>
+          <div class="card">
+            <h3>Replacement Flow</h3>
+            <ul>
+              <li>Remove or replace the old property data sheet.</li>
+              <li>Add the new file using the same naming pattern.</li>
+              <li>Run the refresh script.</li>
+              <li>Refresh the report page in the browser.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="filesTitle">
+        <div class="section-head">
+          <h2 id="filesTitle">Files And Limits</h2>
+          <p class="section-note">These are the important project files and known gaps.</p>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Generated And Support Files</h3>
+            <ul>
+              <li><strong>Brand Composite Score.html</strong>: report page.</li>
+              <li><strong>Documentation.html</strong>: documentation page.</li>
+              <li><strong>data/reviewtrackers-report-data.json</strong>: normalized generated data.</li>
+              <li><strong>Property_Data_Sheet_YYYY.csv</strong>: manually replaced annual property sheet.</li>
+              <li><strong>data/residence-master.json</strong>: optional metadata override.</li>
+              <li><strong>scripts/reviewtrackers-auth.mjs</strong>: token helper.</li>
+              <li><strong>scripts/reviewtrackers-refresh-report.mjs</strong>: API refresh and report injection.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Current Limitations</h3>
+            <ul>
+              <li>Employer brand and trust/friction are placeholders until those sources are provided.</li>
+              <li>Unmapped residences need either ReviewTrackers group cleanup or a residence master override file.</li>
+              <li>Competitor endpoints are optional and only needed for future benchmarking.</li>
+              <li>The scripts do not update reviews, locations, responses, or statuses.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      Documentation for the local static Brand Composite Score report.
+    </footer>
+  </div>
+</body>
+</html>
