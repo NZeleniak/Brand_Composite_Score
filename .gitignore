@@ -1,2 +1,10 @@
 .env
+.env.local
+.env.*.local
 reviewtrackers-token.json
+Property_Data_Sheet_*.csv
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+brand-composite-score-next/

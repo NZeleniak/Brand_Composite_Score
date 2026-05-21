@@ -74,13 +74,28 @@ function parseArgs(argv) {
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     const next = argv[index + 1];
-    if (arg === "--published-after") options.publishedAfter = next, index += 1;
-    else if (arg === "--published-before") options.publishedBefore = next, index += 1;
-    else if (arg === "--report") options.reportPath = next, index += 1;
-    else if (arg === "--output-json") options.outputJson = next, index += 1;
-    else if (arg === "--residence-master") options.residenceMaster = next, index += 1;
-    else if (arg === "--property-data-sheet") options.propertyDataSheet = next, index += 1;
-    else if (arg === "--account-id") options.accountId = next, index += 1;
+    if (arg === "--published-after") {
+      options.publishedAfter = next;
+      index += 1;
+    } else if (arg === "--published-before") {
+      options.publishedBefore = next;
+      index += 1;
+    } else if (arg === "--report") {
+      options.reportPath = next;
+      index += 1;
+    } else if (arg === "--output-json") {
+      options.outputJson = next;
+      index += 1;
+    } else if (arg === "--residence-master") {
+      options.residenceMaster = next;
+      index += 1;
+    } else if (arg === "--property-data-sheet") {
+      options.propertyDataSheet = next;
+      index += 1;
+    } else if (arg === "--account-id") {
+      options.accountId = next;
+      index += 1;
+    }
     else if (arg === "--no-groups") options.useReviewTrackersGroups = false;
     else if (arg === "--no-performance-score") options.includePerformanceScore = false;
   }
@@ -639,7 +654,7 @@ async function main() {
       operatingRegionCounts,
       unmappedCount: operatingRegionCounts.Unmapped || 0,
       excludedNonResidenceSources: aggregated.excludedSourceCounts,
-      propertyDataSourceFile: propertyData.sourceFile,
+      propertyDataSourceFile: propertyData.sourceFile ? path.basename(propertyData.sourceFile) : null,
       propertyRows: propertyData.rows.length,
       propertyMatches: aggregated.residences.filter((residence) => residence.propertyData).length
     }
