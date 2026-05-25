@@ -368,16 +368,16 @@ brand_composite =
 
       <section class="section" aria-labelledby="scoreTitle">
         <div class="section-head">
-          <h2 id="scoreTitle">Residence Data Mode</h2>
-          <p class="section-note">The report opens in ReviewTrackers-only mode. Residence data is added only when the dashboard toggle is enabled.</p>
+          <h2 id="scoreTitle">Data Modes</h2>
+          <p class="section-note">The report opens in ReviewTrackers mode. Spreadsheet data is included only when a user selects Spreadsheet or Combined score.</p>
         </div>
         <div class="grid-2">
           <div class="card">
-            <h3>Dashboard Toggle</h3>
+            <h3>Dashboard Buttons</h3>
             <ul>
-              <li>Click <strong>Add residence data</strong> in the filter bar.</li>
-              <li>The original ReviewTrackers Performance Score remains visible.</li>
-              <li>The leaderboard switches from ReviewTrackers score to Total Score.</li>
+              <li><strong>ReviewTrackers</strong> uses ReviewTrackers metrics and performance score only.</li>
+              <li><strong>Spreadsheet</strong> uses spreadsheet resident NPS, employee NPS, and occupancy only.</li>
+              <li><strong>Combined score</strong> uses the previous Add residence data behavior.</li>
               <li>The filter controls still use ReviewTrackers groups, locations, sources, and date range.</li>
             </ul>
           </div>
@@ -386,6 +386,8 @@ brand_composite =
             <p>NPS values are normalized from -100..100 to 0..100 before averaging.</p>
             <pre class="code">resident_nps_score = (resident_nps + 100) / 2
 employee_nps_score = (employee_nps + 100) / 2
+internal_score = average(resident_nps_score,
+                         employee_nps_score)
 total_score = average(reviewtrackers_score,
                       resident_nps_score,
                       employee_nps_score)</pre>
@@ -396,16 +398,16 @@ total_score = average(reviewtrackers_score,
             <h3>Mapping Diagnostics</h3>
             <ul>
               <li>Property sheet rows are matched to ReviewTrackers residences by normalized residence name only.</li>
-              <li>When the toggle is enabled, the report shows matched and unmatched counts.</li>
+              <li>In Spreadsheet or Combined score mode, the report shows matched and unmatched counts.</li>
               <li>Unmatched ReviewTrackers residences are listed so names can be corrected in the source data or future override file.</li>
             </ul>
           </div>
           <div class="card">
             <h3>Occupancy Correlation</h3>
             <ul>
-              <li>The correlation value is Pearson correlation between occupancy average and Total Score.</li>
+              <li>The correlation value is Pearson correlation between occupancy average and the active mode score.</li>
               <li>No chart is used in this version; the report shows a KPI and a sortable-style detail table.</li>
-              <li>Only residences with occupancy, ReviewTrackers score, resident NPS, and employee NPS are included.</li>
+              <li>Spreadsheet mode requires occupancy, resident NPS, and employee NPS. Combined score mode also requires ReviewTrackers score.</li>
             </ul>
           </div>
         </div>
@@ -431,7 +433,9 @@ total_score = average(reviewtrackers_score,
               <li>GET /groups</li>
               <li>GET /items</li>
               <li>GET /location_score/{account_id}/locations</li>
+              <li>GET /metrics/overview/breakdown</li>
             </ul>
+            <p>The default all-filter dashboard cards prefer these ReviewTrackers aggregate endpoints. Filtered residence, group, and source views use the generated local data when an exact native aggregate is not available.</p>
           </div>
         </div>
       </section>

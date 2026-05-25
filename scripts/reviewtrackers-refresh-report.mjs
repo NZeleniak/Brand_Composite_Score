@@ -362,10 +362,14 @@ async function fetchItems(context) {
 async function fetchPerformanceScores(context, options) {
   const rows = [];
   let page = 1;
+  let aggregateScore = null;
+  let lagAggregateScore = null;
 
   while (true) {
     const pathname = `/location_score/${encodeURIComponent(context.accountId)}/locations?start_date=${encodeURIComponent(options.publishedAfter)}&end_date=${encodeURIComponent(options.publishedBefore)}&per_page=500&page=${page}`;
     const payload = await fetchJson(pathname, { ...context, accept: ACCEPT_HAL });
+    aggregateScore ||= payload._embedded?.aggregate_score || null;
+    lagAggregateScore ||= payload._embedded?.lag_aggregate_score || null;
     rows.push(...(payload._embedded?.location_scores || []));
 
     const totalPages = Number(payload._total_pages || 0);
@@ -376,7 +380,98 @@ async function fetchPerformanceScores(context, options) {
     break;
   }
 
-  return rows;
+  return { rows, aggregateScore, lagAggregateScore };
+}
+
+function daysBetween(startDate, endDate) {
+  const start = new Date(`${startDate}T00:00:00Z`);
+  const end = new Date(`${endDate}T00:00:00Z`);
+  return Math.max(1, Math.round((end - start) / 86400000));
+}
+
+function priorPeriod(options) {
+  const days = daysBetween(options.publishedAfter, options.publishedBefore);
+  const currentStart = new Date(`${options.publishedAfter}T00:00:00Z`);
+  const priorEnd = new Date(currentStart);
+  const priorStart = new Date(currentStart);
+  priorStart.setUTCDate(priorStart.getUTCDate() - days);
+  return {
+    publishedAfter: priorStart.toISOString().slice(0, 10),
+    publishedBefore: priorEnd.toISOString().slice(0, 10)
+  };
+}
+
+async function fetchMetricsOverviewBreakdown(context, options) {
+  const params = new URLSearchParams({
+    account_id: context.accountId,
+    start_date: options.publishedAfter,
+    end_date: options.publishedBefore,
+    time_interval: "monthly"
+  });
+  return fetchJson(`/metrics/overview/breakdown?${params.toString()}`, {
+    ...context,
+    accept: "application/vnd.rtx.v2.hal+json"
+  });
+}
+
+function weightedMetric(rows, field) {
+  let weighted = 0;
+  let weight = 0;
+  for (const row of rows) {
+    const value = Number(row[field]);
+    const reviews = Number(row.total_reviews || 0);
+    if (!Number.isFinite(value) || reviews <= 0) continue;
+    weighted += value * reviews;
+    weight += reviews;
+  }
+  return weight ? weighted / weight : null;
+}
+
+function summarizeMetricsOverview(payload) {
+  const rows = Array.isArray(payload?.overview) ? payload.overview : [];
+  const totalReviews = rows.reduce((sum, row) => sum + Number(row.total_reviews || 0), 0);
+  return {
+    avgRating: weightedMetric(rows, "avg_rating"),
+    avgRatingMaximum: payload?.avg_rating_maximum || rows.find((row) => row.avg_rating_maximum)?.avg_rating_maximum || 5,
+    totalReviews,
+    responseRate: weightedMetric(rows, "response_rate"),
+    avgResponseTimeMs: weightedMetric(rows, "avg_response_time"),
+    periods: rows
+  };
+}
+
+function percentDelta(current, previous) {
+  if (current === null || current === undefined || previous === null || previous === undefined || Number(previous) === 0) return null;
+  return ((Number(current) - Number(previous)) / Number(previous)) * 100;
+}
+
+function buildReviewTrackersDashboardMetrics(currentPayload, previousPayload, performancePayload) {
+  const current = summarizeMetricsOverview(currentPayload);
+  const previous = summarizeMetricsOverview(previousPayload);
+  const score = performancePayload?.aggregateScore?.overall_score ?? null;
+  const lagScore = performancePayload?.lagAggregateScore?.overall_score ?? null;
+
+  return {
+    source: "ReviewTrackers metrics/performance endpoints",
+    performanceScore: score,
+    performanceScorePrevious: lagScore,
+    performanceScoreDeltaPercent: percentDelta(score, lagScore),
+    averageRating: current.avgRating,
+    averageRatingMaximum: current.avgRatingMaximum,
+    averageRatingPrevious: previous.avgRating,
+    averageRatingDeltaPercent: percentDelta(current.avgRating, previous.avgRating),
+    totalReviews: current.totalReviews,
+    totalReviewsPrevious: previous.totalReviews,
+    totalReviewsDeltaPercent: percentDelta(current.totalReviews, previous.totalReviews),
+    responseRate: current.responseRate,
+    responseRatePrevious: previous.responseRate,
+    responseRateDeltaPercent: percentDelta(current.responseRate, previous.responseRate),
+    avgResponseTimeMs: current.avgResponseTimeMs,
+    avgResponseTimePreviousMs: previous.avgResponseTimeMs,
+    avgResponseTimeDeltaPercent: percentDelta(current.avgResponseTimeMs, previous.avgResponseTimeMs),
+    currentPeriods: current.periods,
+    previousPeriods: previous.periods
+  };
 }
 
 async function fetchReviews({ email, token, accountId, publishedAfter, publishedBefore, perPage }) {
@@ -500,6 +595,7 @@ function aggregateReviews(reviews, options, referenceData = {}) {
         active: master?.active ?? apiLocation?.open_status !== "inactive",
         reviewTrackersPerformanceScore: performance?.location_score ?? performance?.score?.overall_score ?? null,
         reviewTrackersResponseRate: performance?.completed_rate ?? null,
+        reviewTrackersResponseTimeMs: performance?.overall_avg_response_time ?? null,
         propertyData
       });
     }
@@ -586,7 +682,8 @@ async function main() {
 
   const context = { email, token, accountId };
   const propertyData = loadPropertyData(options);
-  const [reviews, locations, groups, items, performanceScores] = await Promise.all([
+  const previousOptions = priorPeriod(options);
+  const [reviews, locations, groups, items, performanceScoresPayload, metricsPayload, previousMetricsPayload] = await Promise.all([
     fetchReviews({ ...options, email, token, accountId }),
     fetchLocations(context).catch((error) => {
       console.warn(`Skipping locations lookup: ${error.message}`);
@@ -602,10 +699,19 @@ async function main() {
     }) : [],
     options.includePerformanceScore ? fetchPerformanceScores(context, options).catch((error) => {
       console.warn(`Skipping performance score lookup: ${error.message}`);
-      return [];
-    }) : []
+      return { rows: [], aggregateScore: null, lagAggregateScore: null };
+    }) : { rows: [], aggregateScore: null, lagAggregateScore: null },
+    fetchMetricsOverviewBreakdown(context, options).catch((error) => {
+      console.warn(`Skipping metrics overview lookup: ${error.message}`);
+      return null;
+    }),
+    fetchMetricsOverviewBreakdown(context, previousOptions).catch((error) => {
+      console.warn(`Skipping previous metrics overview lookup: ${error.message}`);
+      return null;
+    })
   ]);
-  const aggregated = aggregateReviews(reviews, options, { locations, groups, items, performanceScores, propertyData });
+  const reviewTrackersDashboardMetrics = buildReviewTrackersDashboardMetrics(metricsPayload, previousMetricsPayload, performanceScoresPayload);
+  const aggregated = aggregateReviews(reviews, options, { locations, groups, items, performanceScores: performanceScoresPayload.rows, propertyData });
   const operatingRegionCounts = Object.fromEntries(
     [...aggregated.residences.reduce((counts, residence) => {
       const region = residence.operatingRegion || residence.region || outsideOperatingRegionLabel;
@@ -629,6 +735,10 @@ async function main() {
     publishedAfter: options.publishedAfter,
     publishedBefore: options.publishedBefore,
     asOfDate: options.publishedBefore,
+    priorPeriod: previousOptions,
+    reviewTrackersDashboardMetrics,
+    reviewTrackersPerformanceAggregate: performanceScoresPayload.aggregateScore,
+    reviewTrackersLagPerformanceAggregate: performanceScoresPayload.lagAggregateScore,
     residences: aggregated.residences,
     reviewSnapshots: aggregated.reviewSnapshots,
     propertyData: {
@@ -671,6 +781,8 @@ async function main() {
   console.log(`Source snapshots: ${reportData.reviewSnapshots.length}`);
   console.log(`ReviewTrackers location records: ${locations.length}`);
   console.log(`ReviewTrackers groups: ${groups.length}`);
+  console.log(`ReviewTrackers dashboard performance score: ${reviewTrackersDashboardMetrics.performanceScore ?? "not available"}`);
+  console.log(`ReviewTrackers dashboard total reviews: ${reviewTrackersDashboardMetrics.totalReviews ?? "not available"}`);
   console.log("Operating region counts:");
   for (const [region, count] of Object.entries(operatingRegionCounts)) {
     console.log(`  ${region}: ${count}`);

@@ -224,30 +224,38 @@ const html = `<!doctype html>
       background: #fff;
       font-size: 22px;
     }
-    .toggle-btn {
+    .data-mode-control {
+      grid-column: 1 / -1;
+      display: inline-flex;
+      width: fit-content;
+      padding: 5px;
+      border: 1px solid #93a4bb;
+      border-radius: 999px;
+      background: #fff;
+    }
+    .data-mode-btn {
       min-height: 57px;
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      padding: 0 22px;
-      border: 1px solid #93a4bb;
+      padding: 0 20px;
+      border: 0;
       border-radius: 999px;
-      color: var(--chartwell);
-      background: #fff;
+      color: var(--ink);
+      background: transparent;
       cursor: pointer;
       font-size: 20px;
       font-weight: 800;
     }
-    .toggle-btn.active {
-      border-color: var(--chartwell);
+    .data-mode-btn.active {
       color: #fff;
       background: var(--chartwell);
       box-shadow: 0 10px 22px rgba(157, 15, 99, 0.24);
     }
-    .toggle-btn:hover { background: #fbf1f7; }
-    .toggle-btn.active:hover { background: var(--chartwell); }
-    .toggle-btn::before {
-      content: "+";
+    .data-mode-btn:hover { background: #fbf1f7; }
+    .data-mode-btn.active:hover { background: var(--chartwell); }
+    .data-mode-btn::before {
+      content: "";
       width: 22px;
       height: 22px;
       display: inline-grid;
@@ -257,7 +265,7 @@ const html = `<!doctype html>
       font-size: 17px;
       line-height: 1;
     }
-    .toggle-btn.active::before { content: "✓"; }
+    .data-mode-btn.active::before { content: "✓"; }
     .data-mode-note {
       width: 100%;
       display: none;
@@ -320,8 +328,7 @@ const html = `<!doctype html>
     .variance .positive { color: #4d7f00; font-weight: 800; }
     .variance .neutral { color: #ff9900; font-weight: 800; }
     .variance .negative { color: #f00000; font-weight: 800; }
-    .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .metric-grid.enhanced { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .metric-tile {
       min-height: 190px;
       display: grid;
@@ -335,12 +342,11 @@ const html = `<!doctype html>
     }
     .metric-tile:first-child { border-top: 4px solid var(--chartwell); }
     .metric-tile[data-enhanced] { background: linear-gradient(180deg, #fff, #fff8fc); }
-    .metric-tile:nth-child(3),
-    .metric-tile:nth-child(7) { border-right: 0; }
+    .metric-tile:nth-child(4n) { border-right: 0; }
     .metric-tile[hidden] { display: none; }
     .metric-value { margin-top: 8px; font-size: 42px; line-height: 1; font-weight: 800; }
     h2 { margin: 0; font-size: 25px; line-height: 1.1; }
-    .leaderboard-layout { display: grid; grid-template-columns: minmax(480px, 760px) 1fr; gap: 30px; margin-top: 34px; }
+    .leaderboard-layout { margin-top: 34px; }
     .tabs { display: inline-flex; gap: 0; padding: 6px; border-radius: 8px; background: #dfe4ec; }
     .tab {
       min-width: 164px;
@@ -356,28 +362,24 @@ const html = `<!doctype html>
     .tab.active { color: var(--blue); background: #fff; }
     .leader-table {
       margin-top: 24px;
-      overflow: hidden;
+      overflow-x: auto;
       border: 1px solid var(--line);
       border-radius: 10px;
       background: #fff;
       box-shadow: var(--shadow);
     }
+    .leader-table table { min-width: 920px; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 19px 18px; text-align: left; vertical-align: middle; font-size: 18px; }
     th { color: var(--muted); background: #f3f6fa; border-bottom: 3px solid #d6d6d6; font-weight: 800; }
     tr:nth-child(even) td { background: #fbfbfc; }
     .leader-table tbody tr:hover td { background: #fff7fb; }
-    .rank-cell { width: 150px; font-weight: 800; }
+    .rank-cell { width: 110px; font-weight: 800; }
     .medal { margin-right: 12px; font-size: 24px; vertical-align: middle; }
     .location-name { font-weight: 800; line-height: 1.15; }
     .location-meta { margin-top: 4px; color: var(--muted); font-size: 14px; }
     .score-cell { white-space: nowrap; font-weight: 800; }
-    .details-card { min-height: 420px; padding: 28px; }
-    .details-card h3 { margin: 0 0 12px; font-size: 24px; }
-    .details-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 20px; }
-    .detail { padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; }
-    .detail strong { display: block; font-size: 26px; }
-    .detail span { color: var(--muted); font-size: 14px; }
+    .table-number { white-space: nowrap; font-weight: 800; }
     .empty { color: var(--muted); font-size: 18px; }
     .note { margin-top: 18px; color: var(--muted); font-size: 14px; }
     .mode-badge {
@@ -463,19 +465,6 @@ const html = `<!doctype html>
       padding-left: 20px;
       color: var(--muted);
     }
-    .enhanced-table-wrap {
-      overflow-x: auto;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      background: #fff;
-    }
-    .enhanced-table tbody tr:hover td { background: #fff7fb; }
-    .enhanced-table th,
-    .enhanced-table td {
-      padding: 13px 14px;
-      font-size: 15px;
-      white-space: nowrap;
-    }
 
     @media (max-width: 980px) {
       .page { padding: 22px 16px 40px; }
@@ -487,7 +476,8 @@ const html = `<!doctype html>
       .filters-grid { gap: 12px; }
       .select-box, .custom-select, .date-box { width: 100%; min-width: 0; }
       .dropdown { width: 100%; }
-      .toggle-btn { width: 100%; justify-content: center; }
+      .data-mode-control { width: 100%; flex-direction: column; border-radius: var(--radius); }
+      .data-mode-btn { width: 100%; justify-content: center; }
       .enhanced-head { flex-direction: column; }
       .correlation-kpi { width: 100%; text-align: left; }
       .unmatched-list ul { grid-template-columns: 1fr; }
@@ -497,7 +487,7 @@ const html = `<!doctype html>
       body { background: #fff; }
       .actions, .filters { display: none; }
       .page { max-width: none; padding: 0; }
-      .dashboard-card, .leader-table, .details-card { box-shadow: none; break-inside: avoid; }
+      .dashboard-card, .leader-table { box-shadow: none; break-inside: avoid; }
     }
   </style>
 </head>
@@ -548,9 +538,13 @@ const html = `<!doctype html>
           </div>
         </div>
         <div class="date-pill" id="dateRangeLabel" aria-label="Report date range"></div>
-        <button class="toggle-btn" id="residenceDataToggle" type="button" aria-pressed="false">Add residence data</button>
+        <div class="data-mode-control" role="group" aria-label="Data source mode">
+          <button class="data-mode-btn active" data-mode-button="external" type="button" aria-pressed="true">ReviewTrackers</button>
+          <button class="data-mode-btn" data-mode-button="internal" type="button" aria-pressed="false">Spreadsheet</button>
+          <button class="data-mode-btn" data-mode-button="combined" type="button" aria-pressed="false">Combined score</button>
+        </div>
         <div class="data-mode-note" id="dataModeNote">
-          <strong>Residence data enabled:</strong> Total Score uses ReviewTrackers Performance Score, resident NPS, and employee NPS. Occupancy correlation is calculated only for matched property sheet rows.
+          <strong id="dataModeNoteTitle">External data:</strong> <span id="dataModeNoteBody">ReviewTrackers metrics and performance score only.</span>
         </div>
       </div>
     </section>
@@ -563,15 +557,15 @@ const html = `<!doctype html>
         <div class="performance">
           <div class="status-icon neutral" id="performanceIcon">−</div>
           <div>
-            <div class="metric-name">Performance Score <span class="info-dot">i</span></div>
+            <div class="metric-name"><span id="performanceTitle">Performance Score</span> <span class="info-dot">i</span></div>
             <div class="performance-value"><span id="performanceScore">--</span>/100</div>
-            <div class="variance">ReviewTrackers location performance score</div>
+            <div class="variance" id="performanceDescription">ReviewTrackers location performance score</div>
           </div>
         </div>
       </section>
 
       <section class="metric-grid" id="metricGrid" aria-label="Summary metrics">
-        <article class="metric-tile">
+        <article class="metric-tile" data-external>
           <div class="status-icon good">↑</div>
           <div>
             <div class="metric-name">Average Rating</div>
@@ -579,7 +573,7 @@ const html = `<!doctype html>
             <div class="variance">Weighted by review volume</div>
           </div>
         </article>
-        <article class="metric-tile">
+        <article class="metric-tile" data-external>
           <div class="status-icon good">↑</div>
           <div>
             <div class="metric-name">Total Reviews</div>
@@ -587,7 +581,7 @@ const html = `<!doctype html>
             <div class="variance">Included residence sources</div>
           </div>
         </article>
-        <article class="metric-tile">
+        <article class="metric-tile" data-external>
           <div class="status-icon neutral">−</div>
           <div>
             <div class="metric-name">Response Rate</div>
@@ -595,12 +589,20 @@ const html = `<!doctype html>
             <div class="variance">From ReviewTrackers performance score data</div>
           </div>
         </article>
+        <article class="metric-tile" data-external>
+          <div class="status-icon good" id="responseTimeIcon">↓</div>
+          <div>
+            <div class="metric-name">Response Time</div>
+            <div class="metric-value"><span id="responseTime">--</span> days</div>
+            <div class="variance">From ReviewTrackers metrics data</div>
+          </div>
+        </article>
         <article class="metric-tile" data-enhanced hidden>
           <div class="status-icon good">↑</div>
           <div>
-            <div class="metric-name">Total Score</div>
+            <div class="metric-name" id="totalScoreLabel">Total Score</div>
             <div class="metric-value"><span id="totalScore">--</span>/100</div>
-            <div class="variance">ReviewTrackers + resident NPS + employee NPS</div>
+            <div class="variance" id="totalScoreDescription">ReviewTrackers + resident NPS + employee NPS</div>
           </div>
         </article>
         <article class="metric-tile" data-enhanced hidden>
@@ -631,43 +633,25 @@ const html = `<!doctype html>
     </main>
 
     <section class="leaderboard-layout" aria-label="Leaderboard">
-      <div>
-        <div class="tabs" role="tablist" aria-label="Leaderboard view">
-          <button class="tab active" id="locationsTab" type="button">Locations</button>
-          <button class="tab" id="groupsTab" type="button">Groups</button>
-        </div>
-        <div class="leader-table">
-          <table>
-            <thead>
-              <tr>
-                <th class="rank-cell">Rank</th>
-                <th id="leaderNameHeader">Location</th>
-                <th id="leaderScoreHeader">Score</th>
-              </tr>
-            </thead>
-            <tbody id="leaderRows"></tbody>
-          </table>
-        </div>
+      <div class="tabs" role="tablist" aria-label="Leaderboard view">
+        <button class="tab active" id="locationsTab" type="button">Locations</button>
+        <button class="tab" id="groupsTab" type="button">Groups</button>
       </div>
-      <aside class="dashboard-card details-card">
-        <h3>Selected View</h3>
-        <p class="empty" id="detailsCopy">Use the filters above to narrow the ReviewTrackers-style dashboard.</p>
-        <div class="mode-badge" id="modeBadge">ReviewTrackers only</div>
-        <div class="details-grid">
-          <div class="detail"><strong id="detailLocations">--</strong><span>Locations</span></div>
-          <div class="detail"><strong id="detailSources">--</strong><span>Sources</span></div>
-          <div class="detail"><strong id="detailReviews">--</strong><span>Reviews</span></div>
-          <div class="detail"><strong id="detailAsOf">--</strong><span>As of</span></div>
-        </div>
-        <p class="note">Only working ReviewTrackers-backed features are shown here. Placeholder controls from the reference screenshot are intentionally excluded.</p>
-      </aside>
+      <div class="leader-table">
+        <table>
+          <thead>
+            <tr id="leaderHeaderRow"></tr>
+          </thead>
+          <tbody id="leaderRows"></tbody>
+        </table>
+      </div>
     </section>
 
     <section class="dashboard-card enhanced-panel" id="enhancedPanel" aria-label="Residence data analysis" hidden>
       <div class="enhanced-head">
         <div>
-          <h2>Residence Data Analysis</h2>
-          <p>Uses matched property sheet rows for resident NPS, employee NPS, occupancy, and the optional Total Score.</p>
+          <h2 id="enhancedPanelTitle">Residence Data Analysis</h2>
+          <p id="enhancedPanelCopy">Uses matched property sheet rows for resident NPS, employee NPS, occupancy, and the optional Total Score.</p>
         </div>
         <div class="correlation-kpi">
           <strong id="correlationValue">--</strong>
@@ -681,8 +665,8 @@ const html = `<!doctype html>
       </div>
       <div class="formula-strip">
         <div class="formula-card">
-          <strong>Total Score formula</strong>
-          <span>Average of ReviewTrackers Performance Score, resident NPS normalized to 0-100, and employee NPS normalized to 0-100.</span>
+          <strong id="formulaTitle">Total Score formula</strong>
+          <span id="formulaCopy">Average of ReviewTrackers Performance Score, resident NPS normalized to 0-100, and employee NPS normalized to 0-100.</span>
         </div>
         <div class="formula-card">
           <strong>Spreadsheet source</strong>
@@ -690,22 +674,6 @@ const html = `<!doctype html>
         </div>
       </div>
       <div class="unmatched-list" id="unmatchedList" hidden></div>
-      <div class="enhanced-table-wrap">
-        <table class="enhanced-table">
-          <thead>
-            <tr>
-              <th>Residence</th>
-              <th>Property Region</th>
-              <th>Occupancy</th>
-              <th>ReviewTrackers Score</th>
-              <th>Resident NPS</th>
-              <th>Employee NPS</th>
-              <th>Total Score</th>
-            </tr>
-          </thead>
-          <tbody id="correlationRows"></tbody>
-        </table>
-      </div>
     </section>
   </div>
 
@@ -721,7 +689,7 @@ const html = `<!doctype html>
       Caring: 0.6
     };
 
-    const state = { group: "All groups", location: "All locations", source: "All sources", view: "locations", useResidenceData: false };
+    const state = { group: "All groups", location: "All locations", source: "All sources", view: "locations", dataMode: "external" };
     const residenceSources = new Set(Object.keys(sourceWeights));
 
     function groupsForResidence(residence) {
@@ -794,22 +762,39 @@ const html = `<!doctype html>
       return Math.max(0, Math.min(100, (Number(value) + 100) / 2));
     }
 
+    function reviewTrackersRegionForPropertyCode(code) {
+      const normalized = String(code || "").trim().toUpperCase();
+      if (!normalized) return "";
+      if (normalized.startsWith("OW")) return "Ontario West - OW";
+      if (normalized.startsWith("OE")) return "Ontario East - OE";
+      if (normalized.startsWith("O")) return "Ontario - ON";
+      if (normalized.startsWith("QC") || normalized.startsWith("Q")) return "Quebec - QC";
+      if (normalized.startsWith("AB") || normalized.startsWith("A")) return "Alberta - AB";
+      if (normalized.startsWith("BC") || normalized.startsWith("B")) return "British Columbia - BC";
+      if (normalized.startsWith("W")) return "West";
+      return normalized;
+    }
+
     function enhancedForResidence(residence, reviews) {
       if (!residence.propertyData) return null;
       const reviewScore = reviewTrackersScoreFor(residence, reviews);
       const residentNpsScore = npsToScore(residence.propertyData.residentNps);
       const employeeNpsScore = npsToScore(residence.propertyData.employeeNps);
-      if (!hasNumber(reviewScore) || !hasNumber(residentNpsScore) || !hasNumber(employeeNpsScore)) return null;
+      if (!hasNumber(residentNpsScore) || !hasNumber(employeeNpsScore)) return null;
+      const internalScore = averageNumbers([residentNpsScore, employeeNpsScore]);
+      const totalScore = hasNumber(reviewScore) ? averageNumbers([reviewScore, residentNpsScore, employeeNpsScore]) : null;
       return {
         residence: residence,
         propertyRegion: residence.propertyData.propertyRegion || "",
+        mappedRegion: reviewTrackersRegionForPropertyCode(residence.propertyData.propertyRegion),
         occupancy: residence.propertyData.occupancyAverage,
         reviewScore: reviewScore,
         residentNps: residence.propertyData.residentNps,
         employeeNps: residence.propertyData.employeeNps,
         residentNpsScore: residentNpsScore,
         employeeNpsScore: employeeNpsScore,
-        totalScore: averageNumbers([reviewScore, residentNpsScore, employeeNpsScore])
+        internalScore: internalScore,
+        totalScore: totalScore
       };
     }
 
@@ -818,13 +803,13 @@ const html = `<!doctype html>
     }
 
     function pearsonCorrelation(rows) {
-      const usable = rows.filter(function (row) { return hasNumber(row.occupancy) && hasNumber(row.totalScore); });
+      const usable = rows.filter(function (row) { return hasNumber(row.occupancy) && hasNumber(scoreForEnhancedRow(row)); });
       if (usable.length < 2) return null;
       const avgX = averageNumbers(usable.map(function (row) { return row.occupancy; }));
-      const avgY = averageNumbers(usable.map(function (row) { return row.totalScore; }));
+      const avgY = averageNumbers(usable.map(scoreForEnhancedRow));
       const parts = usable.reduce(function (acc, row) {
         const dx = Number(row.occupancy) - avgX;
-        const dy = Number(row.totalScore) - avgY;
+        const dy = Number(scoreForEnhancedRow(row)) - avgY;
         acc.numerator += dx * dy;
         acc.x += dx * dx;
         acc.y += dy * dy;
@@ -843,17 +828,51 @@ const html = `<!doctype html>
       const responseRate = weightedAverage(residences.map(function (residence) {
         return { value: residence.reviewTrackersResponseRate, weight: reviewsForResidence(residence.id, reviews).reviewCount || 1 };
       }));
+      const responseTimeMs = weightedAverage(residences.map(function (residence) {
+        return { value: residence.reviewTrackersResponseTimeMs, weight: reviewsForResidence(residence.id, reviews).reviewCount || 1 };
+      }));
+      const nativeMetrics = state.dataMode === "external" && defaultReviewTrackersView() ? sampleData.reviewTrackersDashboardMetrics || {} : {};
+      const internalScore = averageNumbers(enhancedRows.map(function (row) { return row.internalScore; }));
+      const combinedScore = averageNumbers(enhancedRows.map(function (row) { return row.totalScore; }));
       return {
-        performanceScore: score,
-        averageRating: weightedRating5(reviews),
-        totalReviews: reviewCount,
-        responseRate: responseRate,
-        totalScore: averageNumbers(enhancedRows.map(function (row) { return row.totalScore; })),
+        performanceScore: state.dataMode === "internal"
+          ? internalScore
+          : state.dataMode === "combined"
+            ? combinedScore
+            : hasNumber(nativeMetrics.performanceScore) ? nativeMetrics.performanceScore : score,
+        averageRating: hasNumber(nativeMetrics.averageRating) ? nativeMetrics.averageRating : weightedRating5(reviews),
+        totalReviews: hasNumber(nativeMetrics.totalReviews) ? nativeMetrics.totalReviews : reviewCount,
+        responseRate: hasNumber(nativeMetrics.responseRate) ? nativeMetrics.responseRate : responseRate,
+        responseTimeMs: hasNumber(nativeMetrics.avgResponseTimeMs) ? nativeMetrics.avgResponseTimeMs : responseTimeMs,
+        nativeMetricsActive: Boolean(defaultReviewTrackersView() && Object.keys(nativeMetrics).length),
+        internalScore: internalScore,
+        totalScore: combinedScore,
         residentNps: averageNumbers(enhancedRows.map(function (row) { return row.residentNps; })),
         employeeNps: averageNumbers(enhancedRows.map(function (row) { return row.employeeNps; })),
         occupancyAverage: averageNumbers(enhancedRows.map(function (row) { return row.occupancy; })),
         enhancedRows: enhancedRows
       };
+    }
+
+    function defaultReviewTrackersView() {
+      return state.group === "All groups" && state.location === "All locations" && state.source === "All sources";
+    }
+
+    function usesInternalData() {
+      return state.dataMode === "internal" || state.dataMode === "combined";
+    }
+
+    function modeScoreLabel() {
+      return state.dataMode === "internal" ? "Internal Score" : state.dataMode === "combined" ? "Total Score" : "Score";
+    }
+
+    function scoreForEnhancedRow(row) {
+      if (!row) return null;
+      return state.dataMode === "internal" ? row.internalScore : row.totalScore;
+    }
+
+    function matchedPropertyResidences(residences) {
+      return residences.filter(function (residence) { return !!residence.propertyData; });
     }
 
     function reviewsForResidence(residenceId, reviews) {
@@ -872,6 +891,10 @@ const html = `<!doctype html>
 
     function formatPercent(value, digits) {
       return hasNumber(value) ? formatNumber(value, digits || 1) + "%" : "--";
+    }
+
+    function formatDaysFromMs(value) {
+      return hasNumber(value) ? formatNumber(Number(value) / 86400000, 2) : "--";
     }
 
     function propertySourceLabel() {
@@ -972,48 +995,119 @@ const html = `<!doctype html>
       const residences = scopedResidences();
       const reviews = scopedReviews();
       const metrics = metricsFor(residences, reviews);
+      const internalMode = state.dataMode === "internal";
+      const combinedMode = state.dataMode === "combined";
+      const showInternalCards = usesInternalData();
       document.getElementById("performanceScore").textContent = formatNumber(metrics.performanceScore, 0);
       document.getElementById("averageRating").textContent = formatNumber(metrics.averageRating, 2);
       document.getElementById("totalReviews").textContent = metrics.totalReviews.toLocaleString("en-CA");
       document.getElementById("responseRate").textContent = metrics.responseRate === null ? "--" : formatNumber(metrics.responseRate, 2) + "%";
-      document.getElementById("totalScore").textContent = formatNumber(metrics.totalScore, 0);
+      document.getElementById("responseTime").textContent = formatDaysFromMs(metrics.responseTimeMs);
+      document.getElementById("totalScore").textContent = formatNumber(internalMode ? metrics.internalScore : metrics.totalScore, 0);
       document.getElementById("residentNps").textContent = formatNumber(metrics.residentNps, 0);
       document.getElementById("employeeNps").textContent = formatNumber(metrics.employeeNps, 0);
       document.getElementById("occupancyAverage").textContent = formatNumber(metrics.occupancyAverage, 1);
-      document.getElementById("metricGrid").classList.toggle("enhanced", state.useResidenceData);
-      document.querySelectorAll("[data-enhanced]").forEach(function (item) { item.hidden = !state.useResidenceData; });
-      document.getElementById("detailLocations").textContent = residences.length.toLocaleString("en-CA");
-      document.getElementById("detailSources").textContent = new Set(reviews.map(function (review) { return review.source; })).size.toLocaleString("en-CA");
-      document.getElementById("detailReviews").textContent = metrics.totalReviews.toLocaleString("en-CA");
-      document.getElementById("detailAsOf").textContent = sampleData.asOfDate;
-      document.getElementById("detailsCopy").textContent = state.group + " · " + state.location + " · " + state.source;
-      const modeBadge = document.getElementById("modeBadge");
-      modeBadge.textContent = state.useResidenceData ? "Residence data included" : "ReviewTrackers only";
-      modeBadge.classList.toggle("enhanced", state.useResidenceData);
-      document.getElementById("dataModeNote").classList.toggle("active", state.useResidenceData);
+      document.getElementById("performanceTitle").textContent = internalMode ? "Internal Score" : combinedMode ? "Total Score" : "Performance Score";
+      document.getElementById("performanceDescription").textContent = internalMode
+        ? "Resident and employee NPS from the property sheet"
+        : combinedMode
+          ? "ReviewTrackers Performance Score + resident NPS + employee NPS"
+          : "ReviewTrackers location performance score";
+      document.getElementById("totalScoreLabel").textContent = internalMode ? "Internal Score" : "Total Score";
+      document.getElementById("totalScoreDescription").textContent = internalMode ? "Resident NPS + employee NPS" : "ReviewTrackers + resident NPS + employee NPS";
+      document.querySelectorAll("[data-external]").forEach(function (item) { item.hidden = internalMode; });
+      document.querySelectorAll("[data-enhanced]").forEach(function (item) { item.hidden = !showInternalCards; });
+      document.getElementById("dataModeNote").classList.add("active");
+      document.getElementById("dataModeNoteTitle").textContent = internalMode ? "Spreadsheet:" : combinedMode ? "Combined score:" : "ReviewTrackers:";
+      document.getElementById("dataModeNoteBody").textContent = internalMode
+        ? "Uses spreadsheet resident NPS, employee NPS, and occupancy only."
+        : combinedMode
+          ? "Total Score uses ReviewTrackers Performance Score, resident NPS, and employee NPS."
+          : "Uses ReviewTrackers metrics and performance score only.";
+      document.querySelectorAll("[data-mode-button]").forEach(function (button) {
+        const active = button.dataset.modeButton === state.dataMode;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", String(active));
+      });
     }
 
     function renderLeaderboard() {
       const residences = scopedResidences();
       const reviews = scopedReviews();
       const rows = state.view === "locations" ? locationRows(residences, reviews) : groupRows(residences, reviews);
-      document.getElementById("leaderNameHeader").textContent = state.view === "locations" ? "Location" : "Group";
-      document.getElementById("leaderScoreHeader").textContent = state.useResidenceData ? "Total Score" : "Score";
+      const columns = leaderboardColumns();
+      document.getElementById("leaderHeaderRow").innerHTML = columns.map(function (column) {
+        return "<th" + (column.key === "rank" ? " class=\\"rank-cell\\"" : "") + ">" + escapeHtml(column.label) + "</th>";
+      }).join("");
       document.getElementById("leaderRows").innerHTML = rows.map(function (row, index) {
         const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "";
-        return "<tr><td class=\\"rank-cell\\"><span class=\\"medal\\">" + medal + "</span>" + (index + 1) + "</td>" +
-          "<td><div class=\\"location-name\\">" + escapeHtml(row.name) + "</div><div class=\\"location-meta\\">" + escapeHtml(row.meta || "") + "</div></td>" +
-          "<td class=\\"score-cell\\">" + formatNumber(row.score, 0) + " / 100</td></tr>";
+        return "<tr>" + columns.map(function (column) {
+          if (column.key === "rank") return "<td class=\\"rank-cell\\"><span class=\\"medal\\">" + medal + "</span>" + (index + 1) + "</td>";
+          if (column.key === "name") return "<td><div class=\\"location-name\\">" + escapeHtml(row.name) + "</div><div class=\\"location-meta\\">" + escapeHtml(row.meta || "") + "</div></td>";
+          return "<td class=\\"table-number\\">" + formatTableValue(row[column.key], column) + "</td>";
+        }).join("") + "</tr>";
       }).join("");
+    }
+
+    function leaderboardColumns() {
+      const nameLabel = state.view === "locations" ? "Location" : "Group";
+      if (state.dataMode === "internal") {
+        return [
+          { key: "rank", label: "Rank" },
+          { key: "name", label: nameLabel },
+          { key: "mappedRegion", label: "ReviewTrackers Region", type: "text" },
+          { key: "occupancy", label: "Occupancy", type: "percent" },
+          { key: "residentNps", label: "Resident NPS", digits: 0 },
+          { key: "employeeNps", label: "Employee NPS", digits: 0 },
+          { key: "internalScore", label: "Internal Score", suffix: " / 100", digits: 0 }
+        ];
+      }
+      if (state.dataMode === "combined") {
+        return [
+          { key: "rank", label: "Rank" },
+          { key: "name", label: nameLabel },
+          { key: "reviewTrackersScore", label: "ReviewTrackers Score", suffix: " / 100", digits: 0 },
+          { key: "residentNps", label: "Resident NPS", digits: 0 },
+          { key: "employeeNps", label: "Employee NPS", digits: 0 },
+          { key: "occupancy", label: "Occupancy", type: "percent" },
+          { key: "totalScore", label: "Total Score", suffix: " / 100", digits: 0 }
+        ];
+      }
+      return [
+        { key: "rank", label: "Rank" },
+        { key: "name", label: nameLabel },
+        { key: "averageRating", label: "Average Rating", digits: 2 },
+        { key: "reviewCount", label: "Reviews", digits: 0 },
+        { key: "responseRate", label: "Response Rate", type: "percent" },
+        { key: "reviewTrackersScore", label: "Score", suffix: " / 100", digits: 0 }
+      ];
+    }
+
+    function formatTableValue(value, column) {
+      if (column.type === "text") return escapeHtml(value || "--");
+      if (column.type === "percent") return formatPercent(value, 1);
+      return formatNumber(value, column.digits || 0) + (hasNumber(value) ? column.suffix || "" : "");
     }
 
     function locationRows(residences, reviews) {
       return residences.map(function (residence) {
         const enhanced = enhancedForResidence(residence, reviews);
+        const reviewSummary = reviewsForResidence(residence.id, reviews);
         return {
           name: residence.name,
-          meta: state.useResidenceData && enhanced ? [residence.city, enhanced.propertyRegion].filter(Boolean).join(" · ") : residence.city,
-          score: state.useResidenceData ? enhanced?.totalScore ?? null : reviewTrackersScoreFor(residence, reviews)
+          meta: usesInternalData() && enhanced ? [residence.city, enhanced.propertyRegion].filter(Boolean).join(" · ") : residence.city,
+          propertyRegion: enhanced?.propertyRegion,
+          mappedRegion: enhanced?.mappedRegion,
+          occupancy: enhanced?.occupancy,
+          residentNps: enhanced?.residentNps,
+          employeeNps: enhanced?.employeeNps,
+          internalScore: enhanced?.internalScore,
+          totalScore: enhanced?.totalScore,
+          reviewTrackersScore: reviewTrackersScoreFor(residence, reviews),
+          averageRating: reviewSummary.averageRating,
+          reviewCount: reviewSummary.reviewCount,
+          responseRate: residence.reviewTrackersResponseRate,
+          score: usesInternalData() ? scoreForEnhancedRow(enhanced) : reviewTrackersScoreFor(residence, reviews)
         };
       }).sort(function (a, b) { return (b.score ?? -1) - (a.score ?? -1); });
     }
@@ -1025,39 +1119,65 @@ const html = `<!doctype html>
         const groupIds = new Set(groupResidences.map(function (residence) { return residence.id; }));
         const groupReviews = reviews.filter(function (review) { return groupIds.has(review.residenceId); });
         const enhancedRows = enhancedRowsFor(groupResidences, groupReviews);
-        const score = state.useResidenceData
-          ? averageNumbers(enhancedRows.map(function (row) { return row.totalScore; }))
+        const score = usesInternalData()
+          ? averageNumbers(enhancedRows.map(scoreForEnhancedRow))
           : weightedAverage(groupResidences.map(function (residence) {
             return { value: residence.reviewTrackersPerformanceScore, weight: reviewsForResidence(residence.id, groupReviews).reviewCount || 1 };
           }));
-        const meta = state.useResidenceData
+        const meta = usesInternalData()
           ? groupResidences.length + " locations · " + enhancedRows.length + " matched"
           : groupResidences.length + " locations";
-        return { name: group, meta: meta, score: score };
+        return {
+          name: group,
+          meta: meta,
+          mappedRegion: group,
+          occupancy: averageNumbers(enhancedRows.map(function (row) { return row.occupancy; })),
+          residentNps: averageNumbers(enhancedRows.map(function (row) { return row.residentNps; })),
+          employeeNps: averageNumbers(enhancedRows.map(function (row) { return row.employeeNps; })),
+          internalScore: averageNumbers(enhancedRows.map(function (row) { return row.internalScore; })),
+          totalScore: averageNumbers(enhancedRows.map(function (row) { return row.totalScore; })),
+          reviewTrackersScore: weightedAverage(groupResidences.map(function (residence) {
+            return { value: residence.reviewTrackersPerformanceScore, weight: reviewsForResidence(residence.id, groupReviews).reviewCount || 1 };
+          })),
+          averageRating: weightedRating5(groupReviews),
+          reviewCount: groupReviews.reduce(function (sum, review) { return sum + Number(review.reviewCount || 0); }, 0),
+          responseRate: weightedAverage(groupResidences.map(function (residence) {
+            return { value: residence.reviewTrackersResponseRate, weight: reviewsForResidence(residence.id, groupReviews).reviewCount || 1 };
+          })),
+          score: score
+        };
       }).sort(function (a, b) { return (b.score ?? -1) - (a.score ?? -1); });
     }
 
     function renderEnhancedPanel() {
       const panel = document.getElementById("enhancedPanel");
-      panel.hidden = !state.useResidenceData;
-      if (!state.useResidenceData) return;
+      panel.hidden = !usesInternalData();
+      if (!usesInternalData()) return;
 
       const residences = scopedResidences();
       const reviews = scopedReviews();
-      const propertyMatched = residences.filter(function (residence) { return !!residence.propertyData; });
+      const propertyMatched = matchedPropertyResidences(residences);
       const unmatched = residences.filter(function (residence) { return !residence.propertyData; });
       const rows = enhancedRowsFor(residences, reviews).sort(function (a, b) {
-        return (b.totalScore ?? -1) - (a.totalScore ?? -1);
+        return (scoreForEnhancedRow(b) ?? -1) - (scoreForEnhancedRow(a) ?? -1);
       });
-      const correlationRows = rows.filter(function (row) { return hasNumber(row.occupancy) && hasNumber(row.totalScore); });
+      const correlationRows = rows.filter(function (row) { return hasNumber(row.occupancy) && hasNumber(scoreForEnhancedRow(row)); });
       const correlation = pearsonCorrelation(correlationRows);
 
       document.getElementById("diagnosticActive").textContent = residences.length.toLocaleString("en-CA");
       document.getElementById("diagnosticMatched").textContent = propertyMatched.length.toLocaleString("en-CA");
       document.getElementById("diagnosticUnmatched").textContent = unmatched.length.toLocaleString("en-CA");
       document.getElementById("correlationValue").textContent = hasNumber(correlation) ? correlation.toFixed(2) : "--";
-      document.getElementById("correlationLabel").textContent = correlationDescription(correlation) + " · " + correlationRows.length.toLocaleString("en-CA") + " residences";
+      document.getElementById("correlationLabel").textContent = "Occupancy vs. " + modeScoreLabel() + " · " + correlationDescription(correlation) + " · " + correlationRows.length.toLocaleString("en-CA") + " residences";
       document.getElementById("propertySourceLabel").textContent = propertySourceLabel();
+      document.getElementById("enhancedPanelTitle").textContent = state.dataMode === "internal" ? "Internal Data Analysis" : "Combined Data Analysis";
+      document.getElementById("enhancedPanelCopy").textContent = state.dataMode === "internal"
+        ? "Uses matched property sheet rows for resident NPS, employee NPS, occupancy, and Internal Score."
+        : "Uses matched property sheet rows with ReviewTrackers Performance Score for Total Score.";
+      document.getElementById("formulaTitle").textContent = state.dataMode === "internal" ? "Internal Score formula" : "Total Score formula";
+      document.getElementById("formulaCopy").textContent = state.dataMode === "internal"
+        ? "Average of resident NPS and employee NPS after both are normalized to 0-100."
+        : "Average of ReviewTrackers Performance Score, resident NPS normalized to 0-100, and employee NPS normalized to 0-100.";
 
       const unmatchedList = document.getElementById("unmatchedList");
       unmatchedList.hidden = unmatched.length === 0;
@@ -1066,18 +1186,6 @@ const html = `<!doctype html>
           return "<li>" + escapeHtml(residence.name) + "</li>";
         }).join("") + "</ul>"
         : "";
-
-      document.getElementById("correlationRows").innerHTML = rows.map(function (row) {
-        return "<tr>" +
-          "<td><strong>" + escapeHtml(row.residence.name) + "</strong></td>" +
-          "<td>" + escapeHtml(row.propertyRegion || "--") + "</td>" +
-          "<td>" + formatPercent(row.occupancy, 1) + "</td>" +
-          "<td>" + formatNumber(row.reviewScore, 0) + "</td>" +
-          "<td>" + formatNumber(row.residentNps, 0) + "</td>" +
-          "<td>" + formatNumber(row.employeeNps, 0) + "</td>" +
-          "<td><strong>" + formatNumber(row.totalScore, 0) + "</strong></td>" +
-          "</tr>";
-      }).join("") || "<tr><td colspan=\\"7\\">No residences in this view have all required values for Total Score.</td></tr>";
     }
 
     function render() {
@@ -1154,18 +1262,14 @@ const html = `<!doctype html>
       state.group = "All groups";
       state.location = "All locations";
       state.source = "All sources";
-      state.useResidenceData = false;
-      document.getElementById("residenceDataToggle").classList.remove("active");
-      document.getElementById("residenceDataToggle").setAttribute("aria-pressed", "false");
-      document.getElementById("residenceDataToggle").textContent = "Add residence data";
+      state.dataMode = "external";
       render();
     });
-    document.getElementById("residenceDataToggle").addEventListener("click", function () {
-      state.useResidenceData = !state.useResidenceData;
-      this.classList.toggle("active", state.useResidenceData);
-      this.setAttribute("aria-pressed", String(state.useResidenceData));
-      this.textContent = state.useResidenceData ? "Using residence data" : "Add residence data";
-      render();
+    document.querySelectorAll("[data-mode-button]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        state.dataMode = this.dataset.modeButton;
+        render();
+      });
     });
     document.getElementById("locationsTab").addEventListener("click", function () {
       state.view = "locations";

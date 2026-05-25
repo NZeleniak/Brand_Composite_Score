@@ -45,9 +45,10 @@ The script:
 - pulls `/v2/reviews` with cursor pagination
 - pulls `/locations` for official location names and active/inactive state
 - pulls `/groups` and `/items` for group-to-location mapping when available
-- pulls `/location_score/{account_id}/locations` as an optional comparison field
+- pulls `/location_score/{account_id}/locations` for the native ReviewTrackers Performance Score
+- pulls `/metrics/overview/breakdown` for native dashboard KPIs: average rating, total reviews, response rate, and response time
 - finds the newest `Property_Data_Sheet_YYYY.csv` in the project folder, `data/`, or Downloads
-- aggregates by location and source
+- aggregates by location and source for filtered/detail views
 - excludes non-residence employer sources such as Glassdoor and Indeed from residence scoring
 - derives one operating region per residence from ReviewTrackers groups
 - joins property sheet fields by normalized residence name
@@ -55,6 +56,8 @@ The script:
 - calculates average rating, review count, and last review date per source
 - writes `data/reviewtrackers-report-data.json`
 - injects the same data into `Brand Composite Score.html`
+
+The default `All groups / All locations / All sources` dashboard uses ReviewTrackers-native aggregate endpoints first so the headline cards stay as close as possible to ReviewTrackers. Filtered views fall back to the generated residence/source data where the native endpoint does not provide the exact same precomputed slice.
 
 ## Property Data Sheet
 
@@ -71,21 +74,20 @@ The script automatically uses the newest matching year. To force a specific file
 node scripts\reviewtrackers-refresh-report.mjs --property-data-sheet "C:\path\to\Property_Data_Sheet_2026.csv" --published-after 2024-05-21 --published-before 2026-05-21
 ```
 
-## Residence Data Mode
+## Data Modes
 
-The report opens in ReviewTrackers-only mode. Click `Add residence data` in the filter bar to include the property sheet in the dashboard.
+The report opens in `ReviewTrackers` mode. The filter bar has three data-mode buttons:
 
-When enabled:
-
-- the ReviewTrackers Performance Score remains visible
-- Total Score is calculated as the average of:
+- `ReviewTrackers`: ReviewTrackers metrics and performance score only.
+- `Spreadsheet`: spreadsheet-only mode using resident NPS, employee NPS, and occupancy.
+- `Combined score`: the prior `Add residence data` behavior. Total Score is calculated as the average of:
   - ReviewTrackers Performance Score
   - resident NPS normalized with `(resident_nps + 100) / 2`
   - employee NPS normalized with `(employee_nps + 100) / 2`
-- the leaderboard uses Total Score
-- the report shows resident NPS, employee NPS, occupancy, mapping diagnostics, and an occupancy-vs-Total-Score Pearson correlation table
 
-Property sheet rows are matched by normalized residence name only. If a residence cannot be matched, the report lists it under unmatched residences when residence data mode is enabled.
+Internal Score is calculated as the average of resident NPS score and employee NPS score after both are normalized to 0-100. The leaderboard uses the active mode score, and internal/combined modes show mapping diagnostics plus occupancy correlation.
+
+Property sheet rows are matched by normalized residence name only. If a residence cannot be matched, the report lists it under unmatched residences when Spreadsheet or Combined score mode is enabled.
 
 The scripts only read ReviewTrackers data, except `POST /auth`, which creates a temporary authentication token. They do not update reviews, responses, locations, groups, or statuses.
 
