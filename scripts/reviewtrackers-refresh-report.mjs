@@ -563,6 +563,7 @@ function aggregateReviews(reviews, options, referenceData = {}) {
   const propertyByName = new Map((referenceData.propertyData?.rows || []).map((row) => [normalizeResidenceName(row.residenceName), row]));
   const locationMap = new Map();
   const bucketMap = new Map();
+  const employerBucketMap = new Map();
   const excludedSourceCounts = {};
 
   for (const review of reviews) {
@@ -575,6 +576,17 @@ function aggregateReviews(reviews, options, referenceData = {}) {
     const source = canonicalSource(review);
     if (nonResidenceSources.has(source)) {
       excludedSourceCounts[source] = (excludedSourceCounts[source] || 0) + 1;
+      const employerBucket = employerBucketMap.get(source) || {
+        source,
+        ratingTotal: 0,
+        reviewCount: 0,
+        lastReviewDate: reviewDate(review),
+        snapshotDate: options.publishedBefore
+      };
+      employerBucket.ratingTotal += Number(review.rating);
+      employerBucket.reviewCount += 1;
+      if (new Date(reviewDate(review)) > new Date(employerBucket.lastReviewDate)) employerBucket.lastReviewDate = reviewDate(review);
+      employerBucketMap.set(source, employerBucket);
       continue;
     }
     const groups = groupsByLocationId.get(review.location_id) || [];
@@ -626,8 +638,16 @@ function aggregateReviews(reviews, options, referenceData = {}) {
     lastReviewDate: bucket.lastReviewDate.slice(0, 10),
     snapshotDate: options.publishedBefore
   })).sort((a, b) => a.residenceId.localeCompare(b.residenceId) || a.source.localeCompare(b.source));
+  const employerSnapshots = [...employerBucketMap.values()].map((bucket) => ({
+    source: bucket.source,
+    ratingRaw: Number((bucket.ratingTotal / bucket.reviewCount).toFixed(3)),
+    ratingScale: 5,
+    reviewCount: bucket.reviewCount,
+    lastReviewDate: bucket.lastReviewDate.slice(0, 10),
+    snapshotDate: options.publishedBefore
+  })).sort((a, b) => a.source.localeCompare(b.source));
 
-  return { residences, reviewSnapshots, excludedSourceCounts };
+  return { residences, reviewSnapshots, employerSnapshots, excludedSourceCounts };
 }
 
 function buildMonthlyTrend(reviews, options) {
@@ -719,6 +739,12 @@ async function main() {
       return counts;
     }, new Map())].sort((a, b) => a[0].localeCompare(b[0]))
   );
+  const propertyMatches = aggregated.residences.filter((residence) => residence.propertyData).length;
+  const propertyNpsScored = aggregated.residences.filter((residence) => {
+    return residence.propertyData &&
+      residence.propertyData.residentNps !== null &&
+      residence.propertyData.employeeNps !== null;
+  }).length;
   const outsideOperatingRegionGroups = Object.fromEntries(
     [...aggregated.residences
       .filter((residence) => (residence.operatingRegion || residence.region) === outsideOperatingRegionLabel)
@@ -741,21 +767,44 @@ async function main() {
     reviewTrackersLagPerformanceAggregate: performanceScoresPayload.lagAggregateScore,
     residences: aggregated.residences,
     reviewSnapshots: aggregated.reviewSnapshots,
+    employerSnapshots: aggregated.employerSnapshots,
     propertyData: {
       sourceFile: propertyData.sourceFile ? path.basename(propertyData.sourceFile) : null,
       year: propertyData.year,
       rows: propertyData.rows
     },
-    employerBrand: [
-      { source: "Glassdoor", ratingRaw: 3.8, ratingScale: 5, reviewCount: 1, snapshotDate: options.publishedBefore },
-      { source: "Indeed", ratingRaw: 3.8, ratingScale: 5, reviewCount: 1, snapshotDate: options.publishedBefore }
-    ],
-    trustFriction: {
-      bbbRatingRaw: 3.8,
-      bbbRatingScale: 5,
-      complaintCount: 0,
-      complaintWindowMonths: 12,
-      snapshotDate: options.publishedBefore
+    employerBrand: aggregated.employerSnapshots,
+    trustFriction: null,
+    documentLogicConfig: {
+      weights: {
+        residentExperience: 0.7,
+        employerBrand: 0.2,
+        npsComponent: 0.1
+      },
+      residenceSourceWeights: {
+        Google: 1,
+        Yelp: 0.8,
+        Facebook: 0.7,
+        SeniorAdvisor: 0.6,
+        APlaceForMom: 0.6,
+        Caring: 0.6
+      },
+      employerSources: ["Glassdoor", "Indeed"],
+      npsScale: "-100_to_100",
+      ratingFormula: "rating_100 = (rating_raw / rating_scale) * 100",
+      volumeWeightFormula: "ln(1 + review_count)",
+      recencyWeights: [
+        { maxAgeMonths: 12, weight: 1 },
+        { maxAgeMonths: 24, weight: 0.7 },
+        { maxAgeMonths: null, weight: 0.5 }
+      ],
+      confidenceGrades: [
+        { grade: "A", criteria: ">=120 reviews and >=2 sources" },
+        { grade: "B", criteria: "60-119 reviews and >=2 sources" },
+        { grade: "C", criteria: "20-59 reviews or 1 source" },
+        { grade: "D", criteria: "<20 reviews" }
+      ],
+      trustFrictionSubstitute: "npsComponent"
     },
     monthlyTrend: buildMonthlyTrend(reviews, options),
     validation: {
@@ -765,9 +814,12 @@ async function main() {
       outsideOperatingRegionCount: operatingRegionCounts[outsideOperatingRegionLabel] || 0,
       outsideOperatingRegionGroups,
       excludedNonResidenceSources: aggregated.excludedSourceCounts,
+      employerSnapshots: aggregated.employerSnapshots.length,
       propertyDataSourceFile: propertyData.sourceFile ? path.basename(propertyData.sourceFile) : null,
       propertyRows: propertyData.rows.length,
-      propertyMatches: aggregated.residences.filter((residence) => residence.propertyData).length
+      propertyMatches,
+      propertyNpsScored,
+      propertyMissingNps: propertyMatches - propertyNpsScored
     }
   };
 
@@ -783,6 +835,7 @@ async function main() {
   console.log(`ReviewTrackers groups: ${groups.length}`);
   console.log(`ReviewTrackers dashboard performance score: ${reviewTrackersDashboardMetrics.performanceScore ?? "not available"}`);
   console.log(`ReviewTrackers dashboard total reviews: ${reviewTrackersDashboardMetrics.totalReviews ?? "not available"}`);
+  console.log(`Employer snapshots: ${aggregated.employerSnapshots.length}`);
   console.log("Operating region counts:");
   for (const [region, count] of Object.entries(operatingRegionCounts)) {
     console.log(`  ${region}: ${count}`);
@@ -798,6 +851,7 @@ async function main() {
   console.log(`Property data sheet: ${propertyData.sourceFile || "not found"}`);
   console.log(`Property rows: ${propertyData.rows.length}`);
   console.log(`Property matches: ${reportData.validation.propertyMatches}`);
+  console.log(`Property NPS-scored matches: ${reportData.validation.propertyNpsScored}`);
 }
 
 main().catch((error) => {

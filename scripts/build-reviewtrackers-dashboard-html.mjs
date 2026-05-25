@@ -542,6 +542,7 @@ const html = `<!doctype html>
           <button class="data-mode-btn active" data-mode-button="external" type="button" aria-pressed="true">ReviewTrackers</button>
           <button class="data-mode-btn" data-mode-button="internal" type="button" aria-pressed="false">Spreadsheet</button>
           <button class="data-mode-btn" data-mode-button="combined" type="button" aria-pressed="false">Combined score</button>
+          <button class="data-mode-btn" data-mode-button="document" type="button" aria-pressed="false">Document Logic</button>
         </div>
         <div class="data-mode-note" id="dataModeNote">
           <strong id="dataModeNoteTitle">External data:</strong> <span id="dataModeNoteBody">ReviewTrackers metrics and performance score only.</span>
@@ -629,6 +630,38 @@ const html = `<!doctype html>
             <div class="variance">Average from property data sheet</div>
           </div>
         </article>
+        <article class="metric-tile" data-document hidden>
+          <div class="status-icon good">↑</div>
+          <div>
+            <div class="metric-name">Resident Experience</div>
+            <div class="metric-value"><span id="documentResidentExperience">--</span>/100</div>
+            <div class="variance">Weighted review model</div>
+          </div>
+        </article>
+        <article class="metric-tile" data-document hidden>
+          <div class="status-icon neutral">−</div>
+          <div>
+            <div class="metric-name">Employer Brand</div>
+            <div class="metric-value"><span id="documentEmployerBrand">--</span>/100</div>
+            <div class="variance">Glassdoor + Indeed</div>
+          </div>
+        </article>
+        <article class="metric-tile" data-document hidden>
+          <div class="status-icon neutral">−</div>
+          <div>
+            <div class="metric-name">NPS Component</div>
+            <div class="metric-value"><span id="documentNpsComponent">--</span>/100</div>
+            <div class="variance">Resident + employee NPS</div>
+          </div>
+        </article>
+        <article class="metric-tile" data-document hidden>
+          <div class="status-icon good">↑</div>
+          <div>
+            <div class="metric-name">Confidence</div>
+            <div class="metric-value" id="documentConfidence">--</div>
+            <div class="variance">Review volume + sources</div>
+          </div>
+        </article>
       </section>
     </main>
 
@@ -680,7 +713,7 @@ const html = `<!doctype html>
   <script>
     const sampleData = ${serializedData};
 
-    const sourceWeights = {
+    const sourceWeights = sampleData.documentLogicConfig?.residenceSourceWeights || {
       Google: 1.0,
       Yelp: 0.8,
       Facebook: 0.7,
@@ -688,9 +721,33 @@ const html = `<!doctype html>
       APlaceForMom: 0.6,
       Caring: 0.6
     };
+    const sourceAliases = {
+      google: "Google",
+      yelp: "Yelp",
+      facebook: "Facebook",
+      senioradvisor: "SeniorAdvisor",
+      senioradvisorcom: "SeniorAdvisor",
+      aplaceformom: "APlaceForMom",
+      aplaceformomcom: "APlaceForMom",
+      caring: "Caring",
+      caringcom: "Caring"
+    };
+    const documentLogicWeights = Object.assign({
+      residentExperience: 0.7,
+      employerBrand: 0.2,
+      npsComponent: 0.1
+    }, sampleData.documentLogicConfig?.weights || {});
 
     const state = { group: "All groups", location: "All locations", source: "All sources", view: "locations", dataMode: "external" };
-    const residenceSources = new Set(Object.keys(sourceWeights));
+
+    function normalizeSourceKey(source) {
+      return String(source || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    }
+
+    function sourceWeightFor(source) {
+      const canonical = sourceAliases[normalizeSourceKey(source)] || source;
+      return Number(sourceWeights[canonical] || 0);
+    }
 
     function groupsForResidence(residence) {
       return Array.isArray(residence.groups) ? residence.groups.filter(Boolean) : [];
@@ -705,7 +762,7 @@ const html = `<!doctype html>
     }
 
     function reviewInScope(review) {
-      if (!residenceSources.has(review.source)) return false;
+      if (sourceWeightFor(review.source) <= 0) return false;
       if (state.source !== "All sources" && review.source !== state.source) return false;
       return scopedResidences().some(function (residence) { return residence.id === review.residenceId; });
     }
@@ -741,6 +798,16 @@ const html = `<!doctype html>
       return totals.weight ? totals.weighted / totals.weight : null;
     }
 
+    function reviewCountFor(reviews) {
+      return reviews.reduce(function (sum, review) { return sum + Number(review.reviewCount || 0); }, 0);
+    }
+
+    function sourceCountFor(reviews) {
+      return new Set(reviews.map(function (review) {
+        return sourceWeightFor(review.source) > 0 ? sourceAliases[normalizeSourceKey(review.source)] || review.source : "";
+      }).filter(Boolean)).size;
+    }
+
     function hasNumber(value) {
       return value !== null && value !== undefined && !Number.isNaN(Number(value));
     }
@@ -762,6 +829,73 @@ const html = `<!doctype html>
       return Math.max(0, Math.min(100, (Number(value) + 100) / 2));
     }
 
+    function rating100(review) {
+      const rating = Number(review.ratingRaw);
+      const scale = Number(review.ratingScale || 5);
+      if (!Number.isFinite(rating) || !Number.isFinite(scale) || scale <= 0) return null;
+      return (rating / scale) * 100;
+    }
+
+    function recencyWeightFor(dateValue) {
+      if (!dateValue) return 0.5;
+      const endDate = new Date((sampleData.publishedBefore || sampleData.asOfDate) + "T00:00:00");
+      const reviewDateValue = new Date(String(dateValue).slice(0, 10) + "T00:00:00");
+      if (Number.isNaN(reviewDateValue.getTime()) || Number.isNaN(endDate.getTime())) return 0.5;
+      const ageMonths = Math.max(0, (endDate - reviewDateValue) / 86400000 / 30.4375);
+      if (ageMonths <= 12) return 1;
+      if (ageMonths <= 24) return 0.7;
+      return 0.5;
+    }
+
+    function confidenceGrade(reviewCount, sourceCount) {
+      if (reviewCount >= 120 && sourceCount >= 2) return "A";
+      if (reviewCount >= 60 && reviewCount <= 119 && sourceCount >= 2) return "B";
+      if ((reviewCount >= 20 && reviewCount <= 59) || sourceCount === 1) return "C";
+      return "D";
+    }
+
+    function residentExperienceForReviews(reviews) {
+      const totals = reviews.reduce(function (acc, review) {
+        const normalizedRating = rating100(review);
+        const volumeWeight = Math.log1p(Number(review.reviewCount || 0));
+        const recencyWeight = recencyWeightFor(review.lastReviewDate || review.snapshotDate);
+        const sourceWeight = sourceWeightFor(review.source);
+        const weight = volumeWeight * recencyWeight * sourceWeight;
+        if (!hasNumber(normalizedRating) || weight <= 0) return acc;
+        acc.weighted += normalizedRating * weight;
+        acc.weight += weight;
+        return acc;
+      }, { weighted: 0, weight: 0 });
+      const reviewCount = reviewCountFor(reviews);
+      const sourceCount = sourceCountFor(reviews);
+      return {
+        score: totals.weight ? totals.weighted / totals.weight : null,
+        reviewCount: reviewCount,
+        sourceCount: sourceCount,
+        confidence: confidenceGrade(reviewCount, sourceCount)
+      };
+    }
+
+    function employerBrandScore() {
+      const snapshots = sampleData.employerSnapshots || sampleData.employerBrand || [];
+      const totals = snapshots.reduce(function (acc, snapshot) {
+        const normalizedRating = rating100(snapshot);
+        const weight = Math.log1p(Number(snapshot.reviewCount || 0));
+        if (!hasNumber(normalizedRating) || weight <= 0) return acc;
+        acc.weighted += normalizedRating * weight;
+        acc.weight += weight;
+        return acc;
+      }, { weighted: 0, weight: 0 });
+      return totals.weight ? totals.weighted / totals.weight : null;
+    }
+
+    function documentLogicScore(residentExperience, employerBrand, npsComponent) {
+      if (!hasNumber(residentExperience) || !hasNumber(employerBrand) || !hasNumber(npsComponent)) return null;
+      return residentExperience * documentLogicWeights.residentExperience +
+        employerBrand * documentLogicWeights.employerBrand +
+        npsComponent * documentLogicWeights.npsComponent;
+    }
+
     function reviewTrackersRegionForPropertyCode(code) {
       const normalized = String(code || "").trim().toUpperCase();
       if (!normalized) return "";
@@ -778,23 +912,34 @@ const html = `<!doctype html>
     function enhancedForResidence(residence, reviews) {
       if (!residence.propertyData) return null;
       const reviewScore = reviewTrackersScoreFor(residence, reviews);
+      const residenceReviews = reviewsForResidence(residence.id, reviews).items;
+      const residentExperience = residentExperienceForReviews(residenceReviews);
+      const employerBrand = employerBrandScore();
       const residentNpsScore = npsToScore(residence.propertyData.residentNps);
       const employeeNpsScore = npsToScore(residence.propertyData.employeeNps);
       if (!hasNumber(residentNpsScore) || !hasNumber(employeeNpsScore)) return null;
       const internalScore = averageNumbers([residentNpsScore, employeeNpsScore]);
       const totalScore = hasNumber(reviewScore) ? averageNumbers([reviewScore, residentNpsScore, employeeNpsScore]) : null;
+      const documentScore = documentLogicScore(residentExperience.score, employerBrand, internalScore);
       return {
         residence: residence,
         propertyRegion: residence.propertyData.propertyRegion || "",
         mappedRegion: reviewTrackersRegionForPropertyCode(residence.propertyData.propertyRegion),
         occupancy: residence.propertyData.occupancyAverage,
         reviewScore: reviewScore,
+        residentExperienceScore: residentExperience.score,
+        employerBrandScore: employerBrand,
         residentNps: residence.propertyData.residentNps,
         employeeNps: residence.propertyData.employeeNps,
         residentNpsScore: residentNpsScore,
         employeeNpsScore: employeeNpsScore,
+        npsComponent: internalScore,
         internalScore: internalScore,
-        totalScore: totalScore
+        totalScore: totalScore,
+        documentLogicScore: documentScore,
+        reviewCount: residentExperience.reviewCount,
+        sourceCount: residentExperience.sourceCount,
+        confidence: residentExperience.confidence
       };
     }
 
@@ -834,10 +979,16 @@ const html = `<!doctype html>
       const nativeMetrics = state.dataMode === "external" && defaultReviewTrackersView() ? sampleData.reviewTrackersDashboardMetrics || {} : {};
       const internalScore = averageNumbers(enhancedRows.map(function (row) { return row.internalScore; }));
       const combinedScore = averageNumbers(enhancedRows.map(function (row) { return row.totalScore; }));
+      const residentExperience = residentExperienceForReviews(reviews);
+      const employerBrand = employerBrandScore();
+      const npsComponent = averageNumbers(enhancedRows.map(function (row) { return row.npsComponent; }));
+      const documentScore = documentLogicScore(residentExperience.score, employerBrand, npsComponent);
       return {
         performanceScore: state.dataMode === "internal"
           ? internalScore
-          : state.dataMode === "combined"
+          : state.dataMode === "document"
+            ? documentScore
+            : state.dataMode === "combined"
             ? combinedScore
             : hasNumber(nativeMetrics.performanceScore) ? nativeMetrics.performanceScore : score,
         averageRating: hasNumber(nativeMetrics.averageRating) ? nativeMetrics.averageRating : weightedRating5(reviews),
@@ -847,6 +998,11 @@ const html = `<!doctype html>
         nativeMetricsActive: Boolean(defaultReviewTrackersView() && Object.keys(nativeMetrics).length),
         internalScore: internalScore,
         totalScore: combinedScore,
+        documentLogicScore: documentScore,
+        residentExperience: residentExperience.score,
+        employerBrand: employerBrand,
+        npsComponent: npsComponent,
+        confidence: residentExperience.confidence,
         residentNps: averageNumbers(enhancedRows.map(function (row) { return row.residentNps; })),
         employeeNps: averageNumbers(enhancedRows.map(function (row) { return row.employeeNps; })),
         occupancyAverage: averageNumbers(enhancedRows.map(function (row) { return row.occupancy; })),
@@ -859,16 +1015,16 @@ const html = `<!doctype html>
     }
 
     function usesInternalData() {
-      return state.dataMode === "internal" || state.dataMode === "combined";
+      return state.dataMode === "internal" || state.dataMode === "combined" || state.dataMode === "document";
     }
 
     function modeScoreLabel() {
-      return state.dataMode === "internal" ? "Internal Score" : state.dataMode === "combined" ? "Total Score" : "Score";
+      return state.dataMode === "internal" ? "Internal Score" : state.dataMode === "combined" ? "Total Score" : state.dataMode === "document" ? "Document Logic Score" : "Score";
     }
 
     function scoreForEnhancedRow(row) {
       if (!row) return null;
-      return state.dataMode === "internal" ? row.internalScore : row.totalScore;
+      return state.dataMode === "internal" ? row.internalScore : state.dataMode === "document" ? row.documentLogicScore : row.totalScore;
     }
 
     function matchedPropertyResidences(residences) {
@@ -915,7 +1071,7 @@ const html = `<!doctype html>
     function buildOptions() {
       const groups = ["All groups"].concat(reviewTrackersGroupRows().map(function (row) { return row.name; }));
       const sources = ["All sources"].concat([...new Set(sampleData.reviewSnapshots.filter(function (review) {
-        return residenceSources.has(review.source);
+        return sourceWeightFor(review.source) > 0;
       }).map(function (review) { return review.source; }))].sort());
       setDropdown("group", groups.map(function (name) {
         return { value: name, label: name, subtitle: name === "All groups" ? "" : groupCount(name) + " locations" };
@@ -956,7 +1112,7 @@ const html = `<!doctype html>
     function sourceCount(source) {
       if (source === "All sources") return "";
       const total = sampleData.reviewSnapshots
-        .filter(function (review) { return review.source === source && residenceSources.has(review.source); })
+        .filter(function (review) { return review.source === source && sourceWeightFor(review.source) > 0; })
         .reduce(function (sum, review) { return sum + Number(review.reviewCount || 0); }, 0);
       return total.toLocaleString("en-CA") + " reviews";
     }
@@ -997,6 +1153,7 @@ const html = `<!doctype html>
       const metrics = metricsFor(residences, reviews);
       const internalMode = state.dataMode === "internal";
       const combinedMode = state.dataMode === "combined";
+      const documentMode = state.dataMode === "document";
       const showInternalCards = usesInternalData();
       document.getElementById("performanceScore").textContent = formatNumber(metrics.performanceScore, 0);
       document.getElementById("averageRating").textContent = formatNumber(metrics.averageRating, 2);
@@ -1007,21 +1164,30 @@ const html = `<!doctype html>
       document.getElementById("residentNps").textContent = formatNumber(metrics.residentNps, 0);
       document.getElementById("employeeNps").textContent = formatNumber(metrics.employeeNps, 0);
       document.getElementById("occupancyAverage").textContent = formatNumber(metrics.occupancyAverage, 1);
-      document.getElementById("performanceTitle").textContent = internalMode ? "Internal Score" : combinedMode ? "Total Score" : "Performance Score";
+      document.getElementById("documentResidentExperience").textContent = formatNumber(metrics.residentExperience, 0);
+      document.getElementById("documentEmployerBrand").textContent = formatNumber(metrics.employerBrand, 0);
+      document.getElementById("documentNpsComponent").textContent = formatNumber(metrics.npsComponent, 0);
+      document.getElementById("documentConfidence").textContent = metrics.confidence || "--";
+      document.getElementById("performanceTitle").textContent = internalMode ? "Internal Score" : documentMode ? "Document Logic Score" : combinedMode ? "Total Score" : "Performance Score";
       document.getElementById("performanceDescription").textContent = internalMode
         ? "Resident and employee NPS from the property sheet"
-        : combinedMode
+        : documentMode
+          ? "Resident Experience 70% + Employer Brand 20% + NPS 10%"
+          : combinedMode
           ? "ReviewTrackers Performance Score + resident NPS + employee NPS"
           : "ReviewTrackers location performance score";
       document.getElementById("totalScoreLabel").textContent = internalMode ? "Internal Score" : "Total Score";
       document.getElementById("totalScoreDescription").textContent = internalMode ? "Resident NPS + employee NPS" : "ReviewTrackers + resident NPS + employee NPS";
-      document.querySelectorAll("[data-external]").forEach(function (item) { item.hidden = internalMode; });
-      document.querySelectorAll("[data-enhanced]").forEach(function (item) { item.hidden = !showInternalCards; });
+      document.querySelectorAll("[data-external]").forEach(function (item) { item.hidden = internalMode || documentMode; });
+      document.querySelectorAll("[data-enhanced]").forEach(function (item) { item.hidden = !showInternalCards || documentMode; });
+      document.querySelectorAll("[data-document]").forEach(function (item) { item.hidden = !documentMode; });
       document.getElementById("dataModeNote").classList.add("active");
-      document.getElementById("dataModeNoteTitle").textContent = internalMode ? "Spreadsheet:" : combinedMode ? "Combined score:" : "ReviewTrackers:";
+      document.getElementById("dataModeNoteTitle").textContent = internalMode ? "Spreadsheet:" : documentMode ? "Document Logic:" : combinedMode ? "Combined score:" : "ReviewTrackers:";
       document.getElementById("dataModeNoteBody").textContent = internalMode
         ? "Uses spreadsheet resident NPS, employee NPS, and occupancy only."
-        : combinedMode
+        : documentMode
+          ? "Uses the Word document formula with NPS replacing Trust/Friction for V1."
+          : combinedMode
           ? "Total Score uses ReviewTrackers Performance Score, resident NPS, and employee NPS."
           : "Uses ReviewTrackers metrics and performance score only.";
       document.querySelectorAll("[data-mode-button]").forEach(function (button) {
@@ -1073,6 +1239,19 @@ const html = `<!doctype html>
           { key: "totalScore", label: "Total Score", suffix: " / 100", digits: 0 }
         ];
       }
+      if (state.dataMode === "document") {
+        return [
+          { key: "rank", label: "Rank" },
+          { key: "name", label: nameLabel },
+          { key: "residentExperience", label: "Resident Experience", suffix: " / 100", digits: 0 },
+          { key: "employerBrand", label: "Employer Brand", suffix: " / 100", digits: 0 },
+          { key: "npsComponent", label: "NPS Component", suffix: " / 100", digits: 0 },
+          { key: "reviewCount", label: "Reviews", digits: 0 },
+          { key: "sourceCount", label: "Sources", digits: 0 },
+          { key: "confidence", label: "Confidence", type: "text" },
+          { key: "documentLogicScore", label: "Document Logic Score", suffix: " / 100", digits: 0 }
+        ];
+      }
       return [
         { key: "rank", label: "Rank" },
         { key: "name", label: nameLabel },
@@ -1093,6 +1272,10 @@ const html = `<!doctype html>
       return residences.map(function (residence) {
         const enhanced = enhancedForResidence(residence, reviews);
         const reviewSummary = reviewsForResidence(residence.id, reviews);
+        const residentExperience = residentExperienceForReviews(reviewSummary.items);
+        const employerBrand = employerBrandScore();
+        const npsComponent = enhanced?.npsComponent ?? null;
+        const documentScore = documentLogicScore(residentExperience.score, employerBrand, npsComponent);
         return {
           name: residence.name,
           meta: usesInternalData() && enhanced ? [residence.city, enhanced.propertyRegion].filter(Boolean).join(" · ") : residence.city,
@@ -1103,11 +1286,17 @@ const html = `<!doctype html>
           employeeNps: enhanced?.employeeNps,
           internalScore: enhanced?.internalScore,
           totalScore: enhanced?.totalScore,
+          residentExperience: residentExperience.score,
+          employerBrand: employerBrand,
+          npsComponent: npsComponent,
+          sourceCount: residentExperience.sourceCount,
+          confidence: residentExperience.confidence,
+          documentLogicScore: documentScore,
           reviewTrackersScore: reviewTrackersScoreFor(residence, reviews),
           averageRating: reviewSummary.averageRating,
           reviewCount: reviewSummary.reviewCount,
           responseRate: residence.reviewTrackersResponseRate,
-          score: usesInternalData() ? scoreForEnhancedRow(enhanced) : reviewTrackersScoreFor(residence, reviews)
+          score: state.dataMode === "document" ? documentScore : usesInternalData() ? scoreForEnhancedRow(enhanced) : reviewTrackersScoreFor(residence, reviews)
         };
       }).sort(function (a, b) { return (b.score ?? -1) - (a.score ?? -1); });
     }
@@ -1119,8 +1308,12 @@ const html = `<!doctype html>
         const groupIds = new Set(groupResidences.map(function (residence) { return residence.id; }));
         const groupReviews = reviews.filter(function (review) { return groupIds.has(review.residenceId); });
         const enhancedRows = enhancedRowsFor(groupResidences, groupReviews);
+        const residentExperience = residentExperienceForReviews(groupReviews);
+        const employerBrand = employerBrandScore();
+        const npsComponent = averageNumbers(enhancedRows.map(function (row) { return row.npsComponent; }));
+        const documentScore = documentLogicScore(residentExperience.score, employerBrand, npsComponent);
         const score = usesInternalData()
-          ? averageNumbers(enhancedRows.map(scoreForEnhancedRow))
+          ? state.dataMode === "document" ? documentScore : averageNumbers(enhancedRows.map(scoreForEnhancedRow))
           : weightedAverage(groupResidences.map(function (residence) {
             return { value: residence.reviewTrackersPerformanceScore, weight: reviewsForResidence(residence.id, groupReviews).reviewCount || 1 };
           }));
@@ -1136,6 +1329,12 @@ const html = `<!doctype html>
           employeeNps: averageNumbers(enhancedRows.map(function (row) { return row.employeeNps; })),
           internalScore: averageNumbers(enhancedRows.map(function (row) { return row.internalScore; })),
           totalScore: averageNumbers(enhancedRows.map(function (row) { return row.totalScore; })),
+          residentExperience: residentExperience.score,
+          employerBrand: employerBrand,
+          npsComponent: npsComponent,
+          sourceCount: residentExperience.sourceCount,
+          confidence: residentExperience.confidence,
+          documentLogicScore: documentScore,
           reviewTrackersScore: weightedAverage(groupResidences.map(function (residence) {
             return { value: residence.reviewTrackersPerformanceScore, weight: reviewsForResidence(residence.id, groupReviews).reviewCount || 1 };
           })),
@@ -1170,14 +1369,26 @@ const html = `<!doctype html>
       document.getElementById("correlationValue").textContent = hasNumber(correlation) ? correlation.toFixed(2) : "--";
       document.getElementById("correlationLabel").textContent = "Occupancy vs. " + modeScoreLabel() + " · " + correlationDescription(correlation) + " · " + correlationRows.length.toLocaleString("en-CA") + " residences";
       document.getElementById("propertySourceLabel").textContent = propertySourceLabel();
-      document.getElementById("enhancedPanelTitle").textContent = state.dataMode === "internal" ? "Internal Data Analysis" : "Combined Data Analysis";
+      document.getElementById("enhancedPanelTitle").textContent = state.dataMode === "internal"
+        ? "Internal Data Analysis"
+        : state.dataMode === "document"
+          ? "Document Logic Analysis"
+          : "Combined Data Analysis";
       document.getElementById("enhancedPanelCopy").textContent = state.dataMode === "internal"
         ? "Uses matched property sheet rows for resident NPS, employee NPS, occupancy, and Internal Score."
-        : "Uses matched property sheet rows with ReviewTrackers Performance Score for Total Score.";
-      document.getElementById("formulaTitle").textContent = state.dataMode === "internal" ? "Internal Score formula" : "Total Score formula";
+        : state.dataMode === "document"
+          ? "Uses the Word document formula with corporate employer data and NPS replacing Trust/Friction for V1."
+          : "Uses matched property sheet rows with ReviewTrackers Performance Score for Total Score.";
+      document.getElementById("formulaTitle").textContent = state.dataMode === "internal"
+        ? "Internal Score formula"
+        : state.dataMode === "document"
+          ? "Document Logic formula"
+          : "Total Score formula";
       document.getElementById("formulaCopy").textContent = state.dataMode === "internal"
         ? "Average of resident NPS and employee NPS after both are normalized to 0-100."
-        : "Average of ReviewTrackers Performance Score, resident NPS normalized to 0-100, and employee NPS normalized to 0-100.";
+        : state.dataMode === "document"
+          ? "Resident Experience 70% + Employer Brand 20% + NPS Component 10%."
+          : "Average of ReviewTrackers Performance Score, resident NPS normalized to 0-100, and employee NPS normalized to 0-100.";
 
       const unmatchedList = document.getElementById("unmatchedList");
       unmatchedList.hidden = unmatched.length === 0;

@@ -49,7 +49,7 @@ The script:
 - pulls `/metrics/overview/breakdown` for native dashboard KPIs: average rating, total reviews, response rate, and response time
 - finds the newest `Property_Data_Sheet_YYYY.csv` in the project folder, `data/`, or Downloads
 - aggregates by location and source for filtered/detail views
-- excludes non-residence employer sources such as Glassdoor and Indeed from residence scoring
+- captures Glassdoor and Indeed as corporate employer snapshots, while excluding them from residence scoring
 - derives one operating region per residence from ReviewTrackers groups
 - joins property sheet fields by normalized residence name
 - embeds resident NPS, employee NPS, occupancy, and property-sheet match diagnostics
@@ -76,7 +76,7 @@ node scripts\reviewtrackers-refresh-report.mjs --property-data-sheet "C:\path\to
 
 ## Data Modes
 
-The report opens in `ReviewTrackers` mode. The filter bar has three data-mode buttons:
+The report opens in `ReviewTrackers` mode. The filter bar has four data-mode buttons:
 
 - `ReviewTrackers`: ReviewTrackers metrics and performance score only.
 - `Spreadsheet`: spreadsheet-only mode using resident NPS, employee NPS, and occupancy.
@@ -84,10 +84,35 @@ The report opens in `ReviewTrackers` mode. The filter bar has three data-mode bu
   - ReviewTrackers Performance Score
   - resident NPS normalized with `(resident_nps + 100) / 2`
   - employee NPS normalized with `(employee_nps + 100) / 2`
+- `Document Logic`: provisional Word-document logic:
+  - Resident Experience 70%
+  - Employer Brand 20%
+  - NPS Component 10%
 
-Internal Score is calculated as the average of resident NPS score and employee NPS score after both are normalized to 0-100. The leaderboard uses the active mode score, and internal/combined modes show mapping diagnostics plus occupancy correlation.
+Internal Score is calculated as the average of resident NPS score and employee NPS score after both are normalized to 0-100. The leaderboard uses the active mode score, and spreadsheet-based modes show mapping diagnostics plus occupancy correlation.
 
-Property sheet rows are matched by normalized residence name only. If a residence cannot be matched, the report lists it under unmatched residences when Spreadsheet or Combined score mode is enabled.
+Document Logic uses true NPS scale (`-100..100`) and sets `nps_component = average((resident_nps + 100) / 2, (employee_nps + 100) / 2)`. It then calculates:
+
+```text
+document_logic_score =
+  resident_experience * 0.70
++ employer_brand * 0.20
++ nps_component * 0.10
+```
+
+Resident Experience follows the Word document formula:
+
+```text
+rating_100 = (rating_raw / rating_scale) * 100
+volume_weight = ln(1 + review_count)
+resident_experience =
+  sum(rating_100 * volume_weight * recency_weight * source_weight)
+  / sum(volume_weight * recency_weight * source_weight)
+```
+
+Employer Brand is corporate-level. It is derived from Glassdoor and Indeed ratings normalized to 0-100 and weighted by `ln(1 + review_count)`, so it does not change when the user filters by group or location.
+
+Property sheet rows are matched by normalized residence name only. If a residence cannot be matched, the report lists it under unmatched residences when Spreadsheet, Combined score, or Document Logic mode is enabled.
 
 The scripts only read ReviewTrackers data, except `POST /auth`, which creates a temporary authentication token. They do not update reviews, responses, locations, groups, or statuses.
 
@@ -106,5 +131,6 @@ The scripts only read ReviewTrackers data, except `POST /auth`, which creates a 
 - Competitor endpoints are optional and only available on enterprise tiers.
 - ReviewTrackers groups are used as the default region labels unless `data/residence-master.json` overrides them.
 - `Outside operating-region groups` in refresh output means those residences have ReviewTrackers groups, but not one of the operating-region groups used for validation.
-- Employer brand and BBB/trust data are not used in the current ReviewTrackers-style dashboard.
+- Employer Brand is used only in Document Logic when Glassdoor/Indeed snapshots are available.
+- BBB/trust/friction remains out of scope until a real source is added; Document Logic uses NPS for that V1 10% component.
 - Do not paste credentials or tokens into the HTML report.

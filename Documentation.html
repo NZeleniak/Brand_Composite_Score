@@ -316,7 +316,8 @@ sum(volume_weight * recency_weight * source_weight)
 brand_composite =
 (resident_experience * 0.70)
 + (employer_brand * 0.20)
-+ (trust_friction * 0.10)</pre>
++ (nps_component * 0.10)</pre>
+            <p>In V1, NPS replaces the missing Trust/Friction source for the 10% component.</p>
           </div>
           <div class="card">
             <h3>Governance Rules</h3>
@@ -350,6 +351,7 @@ brand_composite =
             <ul>
               <li>Reads ReviewTrackers API data using a local token.</li>
               <li>Aggregates reviews by residence and source.</li>
+              <li>Captures Glassdoor and Indeed as corporate employer snapshots, while excluding them from residence review scoring.</li>
               <li>Finds the newest <strong>Property_Data_Sheet_YYYY.csv</strong> and joins it by residence name.</li>
               <li>Embeds resident NPS, employee NPS, occupancy, and mapping diagnostics for the optional residence-data mode.</li>
               <li>Injects the normalized data into the report file.</li>
@@ -369,7 +371,7 @@ brand_composite =
       <section class="section" aria-labelledby="scoreTitle">
         <div class="section-head">
           <h2 id="scoreTitle">Data Modes</h2>
-          <p class="section-note">The report opens in ReviewTrackers mode. Spreadsheet data is included only when a user selects Spreadsheet or Combined score.</p>
+          <p class="section-note">The report opens in ReviewTrackers mode. Spreadsheet data is included only when a user selects Spreadsheet, Combined score, or Document Logic.</p>
         </div>
         <div class="grid-2">
           <div class="card">
@@ -378,11 +380,12 @@ brand_composite =
               <li><strong>ReviewTrackers</strong> uses ReviewTrackers metrics and performance score only.</li>
               <li><strong>Spreadsheet</strong> uses spreadsheet resident NPS, employee NPS, and occupancy only.</li>
               <li><strong>Combined score</strong> uses the previous Add residence data behavior.</li>
+              <li><strong>Document Logic</strong> uses the Word-document model: Resident Experience 70%, Employer Brand 20%, and NPS Component 10%.</li>
               <li>The filter controls still use ReviewTrackers groups, locations, sources, and date range.</li>
             </ul>
           </div>
           <div class="card">
-            <h3>Total Score Formula</h3>
+            <h3>Spreadsheet And Document Formulas</h3>
             <p>NPS values are normalized from -100..100 to 0..100 before averaging.</p>
             <pre class="code">resident_nps_score = (resident_nps + 100) / 2
 employee_nps_score = (employee_nps + 100) / 2
@@ -390,7 +393,12 @@ internal_score = average(resident_nps_score,
                          employee_nps_score)
 total_score = average(reviewtrackers_score,
                       resident_nps_score,
-                      employee_nps_score)</pre>
+                      employee_nps_score)
+nps_component = internal_score
+document_logic_score =
+  resident_experience * 0.70
++ employer_brand * 0.20
++ nps_component * 0.10</pre>
           </div>
         </div>
         <div class="grid-2">
@@ -398,7 +406,7 @@ total_score = average(reviewtrackers_score,
             <h3>Mapping Diagnostics</h3>
             <ul>
               <li>Property sheet rows are matched to ReviewTrackers residences by normalized residence name only.</li>
-              <li>In Spreadsheet or Combined score mode, the report shows matched and unmatched counts.</li>
+              <li>In Spreadsheet, Combined score, or Document Logic mode, the report shows matched and unmatched counts.</li>
               <li>Unmatched ReviewTrackers residences are listed so names can be corrected in the source data or future override file.</li>
             </ul>
           </div>
@@ -406,8 +414,8 @@ total_score = average(reviewtrackers_score,
             <h3>Occupancy Correlation</h3>
             <ul>
               <li>The correlation value is Pearson correlation between occupancy average and the active mode score.</li>
-              <li>No chart is used in this version; the report shows a KPI and a sortable-style detail table.</li>
-              <li>Spreadsheet mode requires occupancy, resident NPS, and employee NPS. Combined score mode also requires ReviewTrackers score.</li>
+              <li>No chart is used in this version; the report shows a KPI and mapping diagnostics.</li>
+              <li>Spreadsheet mode requires occupancy, resident NPS, and employee NPS. Combined score mode also requires ReviewTrackers score. Document Logic also requires residence review data and NPS.</li>
             </ul>
           </div>
         </div>
@@ -503,7 +511,7 @@ Property_Data_Sheet_2027.csv</pre>
               <li>Add the new file using the same naming pattern.</li>
               <li>Run the refresh script.</li>
               <li>Refresh the report page in the browser.</li>
-              <li>Use the dashboard toggle to include the sheet in Total Score and correlation analysis.</li>
+              <li>Use Spreadsheet, Combined score, or Document Logic to include the sheet in scoring and correlation analysis.</li>
             </ul>
           </div>
         </div>
@@ -530,7 +538,8 @@ Property_Data_Sheet_2027.csv</pre>
           <div class="card">
             <h3>Current Limitations</h3>
             <ul>
-              <li>Employer brand and trust/friction are not used in the current ReviewTrackers-style dashboard.</li>
+              <li>Employer Brand is used only in Document Logic and comes from Glassdoor/Indeed when those reviews are present.</li>
+              <li>BBB/trust/friction remains out of scope until a real source is added; Document Logic uses NPS for that V1 10% component.</li>
               <li><strong>Outside operating-region groups</strong> means the residence has ReviewTrackers groups, but not one of the operating-region groups used for validation.</li>
               <li>Competitor endpoints are optional and only needed for future benchmarking.</li>
               <li>The scripts do not update reviews, locations, responses, or statuses.</li>

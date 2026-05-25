@@ -9993,6 +9993,24 @@
       "snapshotDate": "2026-05-25"
     }
   ],
+  "employerSnapshots": [
+    {
+      "source": "Glassdoor",
+      "ratingRaw": 3.5,
+      "ratingScale": 5,
+      "reviewCount": 42,
+      "lastReviewDate": "2026-05-20",
+      "snapshotDate": "2026-05-25"
+    },
+    {
+      "source": "Indeed",
+      "ratingRaw": 2.429,
+      "ratingScale": 5,
+      "reviewCount": 42,
+      "lastReviewDate": "2026-05-13",
+      "snapshotDate": "2026-05-25"
+    }
+  ],
   "propertyData": {
     "sourceFile": "Property_Data_Sheet_2026.csv",
     "year": 2026,
@@ -15267,25 +15285,76 @@
   "employerBrand": [
     {
       "source": "Glassdoor",
-      "ratingRaw": 3.8,
+      "ratingRaw": 3.5,
       "ratingScale": 5,
-      "reviewCount": 1,
+      "reviewCount": 42,
+      "lastReviewDate": "2026-05-20",
       "snapshotDate": "2026-05-25"
     },
     {
       "source": "Indeed",
-      "ratingRaw": 3.8,
+      "ratingRaw": 2.429,
       "ratingScale": 5,
-      "reviewCount": 1,
+      "reviewCount": 42,
+      "lastReviewDate": "2026-05-13",
       "snapshotDate": "2026-05-25"
     }
   ],
-  "trustFriction": {
-    "bbbRatingRaw": 3.8,
-    "bbbRatingScale": 5,
-    "complaintCount": 0,
-    "complaintWindowMonths": 12,
-    "snapshotDate": "2026-05-25"
+  "trustFriction": null,
+  "documentLogicConfig": {
+    "weights": {
+      "residentExperience": 0.7,
+      "employerBrand": 0.2,
+      "npsComponent": 0.1
+    },
+    "residenceSourceWeights": {
+      "Google": 1,
+      "Yelp": 0.8,
+      "Facebook": 0.7,
+      "SeniorAdvisor": 0.6,
+      "APlaceForMom": 0.6,
+      "Caring": 0.6
+    },
+    "employerSources": [
+      "Glassdoor",
+      "Indeed"
+    ],
+    "npsScale": "-100_to_100",
+    "ratingFormula": "rating_100 = (rating_raw / rating_scale) * 100",
+    "volumeWeightFormula": "ln(1 + review_count)",
+    "recencyWeights": [
+      {
+        "maxAgeMonths": 12,
+        "weight": 1
+      },
+      {
+        "maxAgeMonths": 24,
+        "weight": 0.7
+      },
+      {
+        "maxAgeMonths": null,
+        "weight": 0.5
+      }
+    ],
+    "confidenceGrades": [
+      {
+        "grade": "A",
+        "criteria": ">=120 reviews and >=2 sources"
+      },
+      {
+        "grade": "B",
+        "criteria": "60-119 reviews and >=2 sources"
+      },
+      {
+        "grade": "C",
+        "criteria": "20-59 reviews or 1 source"
+      },
+      {
+        "grade": "D",
+        "criteria": "<20 reviews"
+      }
+    ],
+    "trustFrictionSubstitute": "npsComponent"
   },
   "monthlyTrend": [
     {
@@ -15345,8 +15414,11 @@
       "Glassdoor": 42,
       "Indeed": 42
     },
+    "employerSnapshots": 2,
     "propertyDataSourceFile": "Property_Data_Sheet_2026.csv",
     "propertyRows": 135,
-    "propertyMatches": 132
+    "propertyMatches": 132,
+    "propertyNpsScored": 132,
+    "propertyMissingNps": 0
   }
 }
