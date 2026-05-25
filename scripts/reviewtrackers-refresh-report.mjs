@@ -21,6 +21,7 @@ const sourceNameMap = {
 };
 
 const nonResidenceSources = new Set(["Glassdoor", "Indeed"]);
+const outsideOperatingRegionLabel = "Outside operating-region groups";
 const operatingRegionPriority = [
   "Ontario East - OE",
   "Ontario West - OW",
@@ -455,7 +456,7 @@ function buildGroupMembershipMap(groups, items) {
 }
 
 function deriveOperatingRegion(groups = []) {
-  return operatingRegionPriority.find((region) => groups.includes(region)) || "Unmapped";
+  return operatingRegionPriority.find((region) => groups.includes(region)) || outsideOperatingRegionLabel;
 }
 
 function aggregateReviews(reviews, options, referenceData = {}) {
@@ -495,7 +496,7 @@ function aggregateReviews(reviews, options, referenceData = {}) {
         region: operatingRegion,
         operatingRegion,
         groups,
-        careType: master?.careType || propertyData?.propertyRegion || "Unmapped",
+        careType: master?.careType || propertyData?.propertyRegion || "",
         active: master?.active ?? apiLocation?.open_status !== "inactive",
         reviewTrackersPerformanceScore: performance?.location_score ?? performance?.score?.overall_score ?? null,
         reviewTrackersResponseRate: performance?.completed_rate ?? null,
@@ -607,12 +608,26 @@ async function main() {
   const aggregated = aggregateReviews(reviews, options, { locations, groups, items, performanceScores, propertyData });
   const operatingRegionCounts = Object.fromEntries(
     [...aggregated.residences.reduce((counts, residence) => {
-      const region = residence.operatingRegion || residence.region || "Unmapped";
+      const region = residence.operatingRegion || residence.region || outsideOperatingRegionLabel;
       counts.set(region, (counts.get(region) || 0) + 1);
       return counts;
     }, new Map())].sort((a, b) => a[0].localeCompare(b[0]))
   );
+  const outsideOperatingRegionGroups = Object.fromEntries(
+    [...aggregated.residences
+      .filter((residence) => (residence.operatingRegion || residence.region) === outsideOperatingRegionLabel)
+      .reduce((counts, residence) => {
+        const groupsForResidence = residence.groups?.length ? residence.groups : ["No ReviewTrackers group"];
+        for (const group of groupsForResidence) {
+          counts.set(group, (counts.get(group) || 0) + 1);
+        }
+        return counts;
+      }, new Map())]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+  );
   const reportData = {
+    publishedAfter: options.publishedAfter,
+    publishedBefore: options.publishedBefore,
     asOfDate: options.publishedBefore,
     residences: aggregated.residences,
     reviewSnapshots: aggregated.reviewSnapshots,
@@ -637,9 +652,10 @@ async function main() {
       totalResidences: aggregated.residences.length,
       totalReviewSnapshots: aggregated.reviewSnapshots.length,
       operatingRegionCounts,
-      unmappedCount: operatingRegionCounts.Unmapped || 0,
+      outsideOperatingRegionCount: operatingRegionCounts[outsideOperatingRegionLabel] || 0,
+      outsideOperatingRegionGroups,
       excludedNonResidenceSources: aggregated.excludedSourceCounts,
-      propertyDataSourceFile: propertyData.sourceFile,
+      propertyDataSourceFile: propertyData.sourceFile ? path.basename(propertyData.sourceFile) : null,
       propertyRows: propertyData.rows.length,
       propertyMatches: aggregated.residences.filter((residence) => residence.propertyData).length
     }
@@ -659,7 +675,13 @@ async function main() {
   for (const [region, count] of Object.entries(operatingRegionCounts)) {
     console.log(`  ${region}: ${count}`);
   }
-  console.log(`Unmapped: ${reportData.validation.unmappedCount}`);
+  console.log(`Outside operating-region groups: ${reportData.validation.outsideOperatingRegionCount}`);
+  if (reportData.validation.outsideOperatingRegionCount) {
+    console.log("Outside operating-region group detail:");
+    for (const [group, count] of Object.entries(outsideOperatingRegionGroups)) {
+      console.log(`  ${group}: ${count}`);
+    }
+  }
   console.log(`Excluded non-residence sources: ${JSON.stringify(aggregated.excludedSourceCounts)}`);
   console.log(`Property data sheet: ${propertyData.sourceFile || "not found"}`);
   console.log(`Property rows: ${propertyData.rows.length}`);
