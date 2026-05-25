@@ -1246,6 +1246,7 @@ const html = `<!doctype html>
           { key: "residentExperience", label: "Resident Experience", suffix: " / 100", digits: 0 },
           { key: "employerBrand", label: "Employer Brand", suffix: " / 100", digits: 0 },
           { key: "npsComponent", label: "NPS Component", suffix: " / 100", digits: 0 },
+          { key: "occupancy", label: "Occupancy", type: "percent" },
           { key: "reviewCount", label: "Reviews", digits: 0 },
           { key: "sourceCount", label: "Sources", digits: 0 },
           { key: "confidence", label: "Confidence", type: "text" },

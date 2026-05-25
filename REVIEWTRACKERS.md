@@ -88,6 +88,7 @@ The report opens in `ReviewTrackers` mode. The filter bar has four data-mode but
   - Resident Experience 70%
   - Employer Brand 20%
   - NPS Component 10%
+  - Occupancy is displayed in the table for context only and is not part of the score.
 
 Internal Score is calculated as the average of resident NPS score and employee NPS score after both are normalized to 0-100. The leaderboard uses the active mode score, and spreadsheet-based modes show mapping diagnostics plus occupancy correlation.
 
