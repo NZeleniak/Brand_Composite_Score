@@ -47,6 +47,7 @@ The script:
 - pulls `/groups` and `/items` for group-to-location mapping when available
 - pulls `/location_score/{account_id}/locations` for the native ReviewTrackers Performance Score
 - pulls `/metrics/overview/breakdown` for native dashboard KPIs: average rating, total reviews, response rate, and response time
+- pulls `/intel/locations` for residence competitor comparisons when competitor intel access is available
 - finds the newest `Property_Data_Sheet_YYYY.csv` in the project folder, `data/`, or Downloads
 - aggregates by location and source for filtered/detail views
 - captures Glassdoor and Indeed as employer review snapshots, while excluding them from residence scoring
@@ -81,13 +82,13 @@ node scripts\reviewtrackers-refresh-report.mjs --property-data-sheet "C:\path\to
 The report opens in `Reviews` mode. The filter bar currently shows three data-mode buttons:
 
 - `Reviews`: ReviewTrackers metrics and performance score only.
+  - When competitor intel exists, a `Compare` button opens a residence-vs-competitors table.
 - `Survey`: survey-only mode using resident NPS, employee NPS, and occupancy.
-- `Reputation score`: provisional Word-document logic:
-  - Resident Experience 70%
-  - Employer Brand 20%
-  - Resident NPS 10%
+- `Reputation score`: provisional Word-document logic with a formula selector:
+  - Full score: Resident Experience 60%, Resident NPS 30%, Employer Brand 10%
+  - Resident only: Resident Experience 60%, Resident NPS 40%
   - Occupancy is displayed in the table for context only and is not part of the score.
-  - Table rows can be sorted by Reputation Score or Confidence.
+  - Table rows can be sorted with dropdowns by Resident Experience, Employer Brand when included, Resident NPS, Occupancy, Reviews, Confidence, or Reputation Score, then ordered High to low or Low to high.
 
 `Combined score` remains in the code but is hidden from the dashboard for now. Total Score is calculated as the average of:
   - ReviewTrackers Performance Score
@@ -96,7 +97,7 @@ The report opens in `Reviews` mode. The filter bar currently shows three data-mo
 
 Survey Score is calculated as the average of resident NPS score and employee NPS score after both are normalized to 0-100. The leaderboard uses the active mode score, and survey-based modes show mapping diagnostics plus occupancy correlation.
 
-Reputation score uses true NPS scale (`-100..100`). Employee NPS is combined with the Glassdoor/Indeed employer review signal inside Employer Brand. The 10% NPS component is Resident NPS only:
+Reputation score uses true NPS scale (`-100..100`). Employee NPS is combined with the Glassdoor/Indeed employer review signal inside Employer Brand. Resident NPS is the NPS component:
 
 ```text
 employee_nps_score = (employee_nps + 100) / 2
@@ -105,13 +106,17 @@ employer_brand = average(employee_nps_score, employer_review_score)
 nps_component = (resident_nps + 100) / 2
 ```
 
-It then calculates:
+It then calculates one of two selected formulas:
 
 ```text
-document_logic_score =
-  resident_experience * 0.70
-+ employer_brand * 0.20
-+ nps_component * 0.10
+full_reputation_score =
+  resident_experience * 0.60
++ nps_component * 0.30
++ employer_brand * 0.10
+
+resident_only_reputation_score =
+  resident_experience * 0.60
++ nps_component * 0.40
 ```
 
 Resident Experience follows the Word document formula:
@@ -142,9 +147,9 @@ The scripts only read ReviewTrackers data, except `POST /auth`, which creates a 
 
 ## Notes
 
-- Competitor endpoints are optional and only available on enterprise tiers.
+- Competitor endpoints are optional and only available on enterprise tiers. The report uses `GET /intel/locations` and shows competitor comparisons only in `Reviews` mode.
 - ReviewTrackers groups are used as the default region labels unless `data/residence-master.json` overrides them.
 - `Outside operating-region groups` in refresh output means those residences have ReviewTrackers groups, but not one of the operating-region groups used for validation.
 - Employer Brand is used only in Reputation score and combines Employee NPS with Glassdoor/Indeed snapshots when available.
-- BBB/trust/friction remains out of scope until a real source is added; Reputation score uses Resident NPS for that V1 10% component.
+- BBB/trust/friction remains out of scope until a real source is added.
 - Do not paste credentials or tokens into the HTML report.

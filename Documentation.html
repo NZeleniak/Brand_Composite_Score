@@ -314,10 +314,10 @@ sum(rating_100 * volume_weight * recency_weight * source_weight)
 sum(volume_weight * recency_weight * source_weight)
 
 brand_composite =
-(resident_experience * 0.70)
-+ (employer_brand * 0.20)
-+ (nps_component * 0.10)</pre>
-            <p>In V1, Resident NPS replaces the missing Trust/Friction source for the 10% component. Employer Brand combines Employee NPS with Glassdoor and Indeed employer reviews.</p>
+(resident_experience * 0.60)
++ (nps_component * 0.30)
++ (employer_brand * 0.10)</pre>
+            <p>In V1, the default Reputation formula uses Resident Experience, Resident NPS, and Employer Brand. A resident-only formula excludes Employer Brand and weights Resident NPS at 40%.</p>
           </div>
           <div class="card">
             <h3>Governance Rules</h3>
@@ -351,6 +351,7 @@ brand_composite =
             <ul>
               <li>Reads ReviewTrackers API data using a local token.</li>
               <li>Aggregates reviews by residence and source.</li>
+              <li>Pulls ReviewTrackers competitor intel for each active residence when the account has access.</li>
               <li>Captures Glassdoor and Indeed as employer review snapshots, while excluding them from residence review scoring.</li>
               <li>Finds the newest <strong>Property_Data_Sheet_YYYY.csv</strong> and joins it by residence name.</li>
               <li>Embeds resident NPS, employee NPS, occupancy, and mapping diagnostics for the optional residence-data mode.</li>
@@ -378,10 +379,11 @@ brand_composite =
             <h3>Mode Buttons</h3>
             <ul>
               <li><strong>Reviews</strong> uses ReviewTrackers metrics and performance score only.</li>
+              <li>Reviews mode can compare a residence against its ReviewTrackers competitors when competitor intel is available.</li>
               <li><strong>Survey</strong> uses resident NPS, employee NPS, and occupancy only.</li>
-              <li><strong>Reputation score</strong> uses the Word-document model: Resident Experience 70%, Employer Brand 20%, and Resident NPS 10%.</li>
+              <li><strong>Reputation score</strong> uses a formula selector: Full score is Resident Experience 60%, Resident NPS 30%, and Employer Brand 10%; Resident only is Resident Experience 60% and Resident NPS 40%.</li>
               <li>Reputation score also displays occupancy in the table for context, but occupancy is not included in the score calculation.</li>
-              <li>Reputation score table rows can be sorted by Reputation Score or Confidence.</li>
+              <li>Reputation score table rows can be sorted with dropdowns by Resident Experience, Employer Brand when included, Resident NPS, Occupancy, Reviews, Confidence, or Reputation Score, then ordered High to low or Low to high.</li>
               <li><strong>Combined score</strong> remains in the code but is hidden from the dashboard for now.</li>
               <li>The filter controls show Platforms, Region, Locations, Sources, and date range.</li>
               <li>Platforms are backed by ReviewTrackers groups. Region is a visible placeholder only in this version.</li>
@@ -402,9 +404,13 @@ employer_brand = average(employee_nps_score,
                          employer_review_score)
 nps_component = resident_nps_score
 document_logic_score =
-  resident_experience * 0.70
-+ employer_brand * 0.20
-+ nps_component * 0.10</pre>
+  resident_experience * 0.60
++ nps_component * 0.30
++ employer_brand * 0.10
+
+resident_only_reputation_score =
+  resident_experience * 0.60
++ nps_component * 0.40</pre>
           </div>
         </div>
         <div class="grid-2">
@@ -448,8 +454,9 @@ document_logic_score =
               <li>GET /items</li>
               <li>GET /location_score/{account_id}/locations</li>
               <li>GET /metrics/overview/breakdown</li>
+              <li>GET /intel/locations</li>
             </ul>
-            <p>The default all-filter dashboard cards prefer these ReviewTrackers aggregate endpoints. Filtered residence, group, and source views use the generated local data when an exact native aggregate is not available.</p>
+            <p>The default all-filter dashboard cards prefer these ReviewTrackers aggregate endpoints. Filtered residence, group, and source views use the generated local data when an exact native aggregate is not available. Competitor intel is read-only and only appears in Reviews mode.</p>
           </div>
         </div>
       </section>
@@ -545,9 +552,9 @@ Property_Data_Sheet_2027.csv</pre>
             <h3>Current Limitations</h3>
             <ul>
               <li>Employer Brand is used only in Reputation score and comes from Employee NPS plus Glassdoor/Indeed when those reviews are present.</li>
-              <li>BBB/trust/friction remains out of scope until a real source is added; Reputation score uses Resident NPS for that V1 10% component.</li>
+              <li>BBB/trust/friction remains out of scope until a real source is added.</li>
               <li><strong>Outside operating-region groups</strong> means the residence has ReviewTrackers groups, but not one of the operating-region groups used for validation.</li>
-              <li>Competitor endpoints are optional and only needed for future benchmarking.</li>
+              <li>Competitor endpoints require ReviewTrackers competitor intel access. If unavailable, the refresh still succeeds and compare buttons show no data.</li>
               <li>The scripts do not update reviews, locations, responses, or statuses.</li>
             </ul>
           </div>

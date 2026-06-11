@@ -283,6 +283,39 @@ const html = `<!doctype html>
     }
     .data-mode-note.active { display: block; }
     .data-mode-note strong { color: var(--ink); }
+    .reputation-formula-control {
+      grid-column: 1 / -1;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      width: fit-content;
+      padding: 5px;
+      border: 1px solid #93a4bb;
+      border-radius: 999px;
+      background: #fff;
+    }
+    .reputation-formula-control[hidden] { display: none; }
+    .formula-label {
+      padding: 0 10px 0 14px;
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 800;
+    }
+    .formula-mode-btn {
+      min-height: 44px;
+      padding: 0 16px;
+      border: 0;
+      border-radius: 999px;
+      color: var(--ink);
+      background: transparent;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 800;
+    }
+    .formula-mode-btn.active {
+      color: #fff;
+      background: var(--blue);
+    }
     .dashboard-spacer { height: 56px; }
     .dashboard-card {
       border: 1px solid var(--line);
@@ -381,6 +414,23 @@ const html = `<!doctype html>
       font-weight: 800;
     }
     .sort-control[hidden] { display: none; }
+    .sort-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sort-select {
+      height: 42px;
+      min-width: 190px;
+      padding: 0 38px 0 14px;
+      border: 1px solid #aeb9c8;
+      border-radius: var(--radius);
+      color: var(--ink);
+      background: #fff;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 800;
+    }
     .sort-btn {
       height: 42px;
       padding: 0 14px;
@@ -417,6 +467,71 @@ const html = `<!doctype html>
     .location-meta { margin-top: 4px; color: var(--muted); font-size: 14px; }
     .score-cell { white-space: nowrap; font-weight: 800; }
     .table-number { white-space: nowrap; font-weight: 800; }
+    .compare-btn {
+      min-height: 38px;
+      padding: 0 14px;
+      border: 1px solid var(--blue);
+      border-radius: var(--radius);
+      color: var(--blue);
+      background: #fff;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .compare-btn:hover,
+    .compare-btn.active {
+      color: #fff;
+      background: var(--blue);
+    }
+    .compare-btn[disabled] {
+      border-color: #c6cfda;
+      color: #8b96a6;
+      background: #f3f6fa;
+      cursor: default;
+    }
+    .competitor-expanded-row td {
+      padding: 0;
+      border-top: 1px solid #dbe3ee;
+      border-bottom: 1px solid #dbe3ee;
+      background: #fff !important;
+    }
+    .competitor-expanded {
+      padding: 22px 26px 26px 138px;
+      background: linear-gradient(180deg, #fff, #f8fbff);
+    }
+    .competitor-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 16px;
+    }
+    .competitor-head p { margin: 6px 0 0; color: var(--muted); font-size: 15px; }
+    .competitor-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .competitor-summary-item {
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #f8fbff;
+    }
+    .competitor-summary-item strong { display: block; font-size: 24px; line-height: 1; }
+    .competitor-summary-item span { display: block; margin-top: 5px; color: var(--muted); font-size: 13px; }
+    .competitor-table {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+    .competitor-table table { min-width: 760px; }
+    .competitor-table th,
+    .competitor-table td { padding: 14px 16px; font-size: 16px; }
+    .competitor-table .self-row td { background: #fff7fb; font-weight: 800; }
+    .tag-list { margin-top: 4px; color: var(--muted); font-size: 13px; }
     .empty { color: var(--muted); font-size: 18px; }
     .note { margin-top: 18px; color: var(--muted); font-size: 14px; }
     .mode-badge {
@@ -515,8 +630,15 @@ const html = `<!doctype html>
       .dropdown { width: 100%; }
       .data-mode-control { width: 100%; flex-direction: column; border-radius: var(--radius); }
       .data-mode-btn { width: 100%; justify-content: center; }
+      .reputation-formula-control { width: 100%; flex-direction: column; border-radius: var(--radius); }
+      .formula-mode-btn { width: 100%; }
       .leaderboard-head { align-items: stretch; }
       .sort-control { width: 100%; flex-wrap: wrap; }
+      .sort-group { width: 100%; flex-wrap: wrap; }
+      .sort-select { width: 100%; }
+      .competitor-head { flex-direction: column; }
+      .competitor-summary { grid-template-columns: 1fr; }
+      .competitor-expanded { padding: 18px; }
       .enhanced-head { flex-direction: column; }
       .correlation-kpi { width: 100%; text-align: left; }
       .unmatched-list ul { grid-template-columns: 1fr; }
@@ -583,6 +705,11 @@ const html = `<!doctype html>
           <button class="data-mode-btn active" data-mode-button="external" type="button" aria-pressed="true">Reviews</button>
           <button class="data-mode-btn" data-mode-button="internal" type="button" aria-pressed="false">Survey</button>
           <button class="data-mode-btn" data-mode-button="document" type="button" aria-pressed="false">Reputation score</button>
+        </div>
+        <div class="reputation-formula-control" id="reputationFormulaControl" role="group" aria-label="Reputation score formula" hidden>
+          <span class="formula-label">Formula</span>
+          <button class="formula-mode-btn active" data-reputation-formula="full" type="button" aria-pressed="true">Full score</button>
+          <button class="formula-mode-btn" data-reputation-formula="resident" type="button" aria-pressed="false">Resident only</button>
         </div>
         <div class="data-mode-note" id="dataModeNote">
           <strong id="dataModeNoteTitle">Reviews:</strong> <span id="dataModeNoteBody">ReviewTrackers metrics and performance score only.</span>
@@ -683,7 +810,7 @@ const html = `<!doctype html>
           <div>
             <div class="metric-name">Employer Brand</div>
             <div class="metric-value"><span id="documentEmployerBrand">--</span>/100</div>
-            <div class="variance">Employee NPS + Glassdoor + Indeed</div>
+            <div class="variance" id="documentEmployerBrandDescription">Employee NPS + Glassdoor + Indeed</div>
           </div>
         </article>
         <article class="metric-tile" data-document hidden>
@@ -709,12 +836,20 @@ const html = `<!doctype html>
       <div class="leaderboard-head">
         <div class="tabs" role="tablist" aria-label="Leaderboard view">
           <button class="tab active" id="locationsTab" type="button">Locations</button>
-          <button class="tab" id="groupsTab" type="button">Groups</button>
+          <button class="tab" id="groupsTab" type="button">Platforms</button>
         </div>
         <div class="sort-control" id="reputationSortControl" hidden>
-          <span>Sort by</span>
-          <button class="sort-btn active" data-reputation-sort="score" type="button">Reputation Score</button>
-          <button class="sort-btn" data-reputation-sort="confidence" type="button">Confidence</button>
+          <label class="sort-group" for="reputationSortSelect">
+            <span>Sort by</span>
+            <select class="sort-select" id="reputationSortSelect"></select>
+          </label>
+          <label class="sort-group" for="reputationDirectionSelect">
+            <span>Order</span>
+            <select class="sort-select" id="reputationDirectionSelect">
+              <option value="desc">High to low</option>
+              <option value="asc">Low to high</option>
+            </select>
+          </label>
         </div>
       </div>
       <div class="leader-table">
@@ -779,13 +914,44 @@ const html = `<!doctype html>
       caring: "Caring",
       caringcom: "Caring"
     };
-    const documentLogicWeights = Object.assign({
-      residentExperience: 0.7,
-      employerBrand: 0.2,
-      npsComponent: 0.1
-    }, sampleData.documentLogicConfig?.weights || {});
+    const reputationFormulaDefaults = {
+      full: {
+        label: "Full score",
+        description: "Resident Experience 60% + Resident NPS 30% + Employer Brand 10%",
+        weights: { residentExperience: 0.6, npsComponent: 0.3, employerBrand: 0.1 },
+        includeEmployerBrand: true
+      },
+      resident: {
+        label: "Resident only",
+        description: "Resident Experience 60% + Resident NPS 40%",
+        weights: { residentExperience: 0.6, npsComponent: 0.4, employerBrand: 0 },
+        includeEmployerBrand: false
+      }
+    };
+    const reputationFormulas = Object.assign(
+      {},
+      reputationFormulaDefaults,
+      sampleData.documentLogicConfig?.scoringModes || {},
+      sampleData.documentLogicConfig?.scoringModels || {}
+    );
+    const defaultReputationFormula = reputationFormulas[sampleData.documentLogicConfig?.defaultScoringModel]
+      ? sampleData.documentLogicConfig.defaultScoringModel
+      : "full";
 
-    const state = { group: "All groups", location: "All locations", source: "All sources", view: "locations", dataMode: "external", reputationSort: "score" };
+    const state = {
+      group: "All groups",
+      location: "All locations",
+      source: "All sources",
+      view: "locations",
+      dataMode: "external",
+      reputationSort: "documentLogicScore",
+      reputationSortDirection: "desc",
+      reputationFormula: defaultReputationFormula,
+      competitorResidenceId: null
+    };
+    const competitorComparisonsByResidenceId = new Map((sampleData.competitorComparisons || []).map(function (comparison) {
+      return [comparison.residenceId, comparison];
+    }));
 
     function normalizeSourceKey(source) {
       return String(source || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -824,6 +990,32 @@ const html = `<!doctype html>
 
     function scopedReviews() {
       return sampleData.reviewSnapshots.filter(reviewInScope);
+    }
+
+    function competitorComparisonFor(residenceId) {
+      return competitorComparisonsByResidenceId.get(residenceId) || null;
+    }
+
+    function competitorSourceLabel(row) {
+      const sources = Array.isArray(row.sources) ? row.sources.filter(function (source) {
+        return source && source.source;
+      }) : [];
+      if (!sources.length) return "--";
+      return sources.map(function (source) {
+        const rating = hasNumber(source.avgRating) ? formatNumber(source.avgRating, 2) : "--";
+        const reviews = Number(source.totalReviews || 0).toLocaleString("en-CA");
+        return escapeHtml(source.source) + " (" + rating + ", " + reviews + ")";
+      }).join("<br>");
+    }
+
+    function weightedAverageRating(rows) {
+      const totals = rows.reduce(function (acc, row) {
+        if (!hasNumber(row.avgRating) || Number(row.totalReviews || 0) <= 0) return acc;
+        acc.weighted += Number(row.avgRating) * Number(row.totalReviews || 0);
+        acc.weight += Number(row.totalReviews || 0);
+        return acc;
+      }, { weighted: 0, weight: 0 });
+      return totals.weight ? totals.weighted / totals.weight : null;
     }
 
     function weightedRating5(reviews) {
@@ -940,11 +1132,31 @@ const html = `<!doctype html>
       return averageNumbers([employerReviewScore(), employeeNpsScore]);
     }
 
+    function activeReputationFormula() {
+      return reputationFormulas[state.reputationFormula] || reputationFormulas.full;
+    }
+
+    function activeReputationWeights() {
+      return activeReputationFormula().weights || reputationFormulaDefaults.full.weights;
+    }
+
+    function reputationFormulaDescription() {
+      return activeReputationFormula().description || reputationFormulaDefaults.full.description;
+    }
+
+    function reputationUsesEmployerBrand() {
+      const weights = activeReputationWeights();
+      return Number(weights.employerBrand || 0) > 0;
+    }
+
     function documentLogicScore(residentExperience, employerBrand, npsComponent) {
-      if (!hasNumber(residentExperience) || !hasNumber(employerBrand) || !hasNumber(npsComponent)) return null;
-      return residentExperience * documentLogicWeights.residentExperience +
-        employerBrand * documentLogicWeights.employerBrand +
-        npsComponent * documentLogicWeights.npsComponent;
+      const weights = activeReputationWeights();
+      const employerWeight = Number(weights.employerBrand || 0);
+      if (!hasNumber(residentExperience) || !hasNumber(npsComponent)) return null;
+      if (employerWeight > 0 && !hasNumber(employerBrand)) return null;
+      return residentExperience * Number(weights.residentExperience || 0) +
+        npsComponent * Number(weights.npsComponent || 0) +
+        (employerWeight > 0 ? employerBrand * employerWeight : 0);
     }
 
     function reviewTrackersRegionForPropertyCode(code) {
@@ -1221,11 +1433,14 @@ const html = `<!doctype html>
       document.getElementById("documentEmployerBrand").textContent = formatNumber(metrics.employerBrand, 0);
       document.getElementById("documentNpsComponent").textContent = formatNumber(metrics.npsComponent, 0);
       document.getElementById("documentConfidence").textContent = metrics.confidence || "--";
+      document.getElementById("documentEmployerBrandDescription").textContent = reputationUsesEmployerBrand()
+        ? "Employee NPS + Glassdoor + Indeed"
+        : "Shown, not included in selected formula";
       document.getElementById("performanceTitle").textContent = internalMode ? "Survey Score" : documentMode ? "Reputation Score" : combinedMode ? "Total Score" : "Performance Score";
       document.getElementById("performanceDescription").textContent = internalMode
         ? "Resident and employee NPS from the property sheet"
         : documentMode
-          ? "Resident Experience 70% + Employer Brand 20% + Resident NPS 10%"
+          ? reputationFormulaDescription()
           : combinedMode
           ? "ReviewTrackers Performance Score + resident NPS + employee NPS"
           : "ReviewTrackers location performance score";
@@ -1239,7 +1454,7 @@ const html = `<!doctype html>
       document.getElementById("dataModeNoteBody").textContent = internalMode
         ? "Uses survey resident NPS, employee NPS, and occupancy only."
         : documentMode
-          ? "Uses the Word document formula: review experience, Employee NPS plus Glassdoor/Indeed employer signal, and Resident NPS."
+          ? "Uses selected Reputation formula: " + reputationFormulaDescription() + "."
           : combinedMode
           ? "Total Score uses ReviewTrackers Performance Score, resident NPS, and employee NPS."
           : "Uses ReviewTrackers metrics and performance score only.";
@@ -1248,33 +1463,85 @@ const html = `<!doctype html>
         button.classList.toggle("active", active);
         button.setAttribute("aria-pressed", String(active));
       });
+      const formulaControl = document.getElementById("reputationFormulaControl");
+      formulaControl.hidden = !documentMode;
+      document.querySelectorAll("[data-reputation-formula]").forEach(function (button) {
+        const active = button.dataset.reputationFormula === state.reputationFormula;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", String(active));
+      });
     }
 
     function renderLeaderboard() {
       const residences = scopedResidences();
       const reviews = scopedReviews();
-      const rows = sortLeaderboardRows(state.view === "locations" ? locationRows(residences, reviews) : groupRows(residences, reviews));
       const columns = leaderboardColumns();
+      renderReputationSortControl(columns);
+      const rows = sortLeaderboardRows(state.view === "locations" ? locationRows(residences, reviews) : groupRows(residences, reviews));
       const sortControl = document.getElementById("reputationSortControl");
       sortControl.hidden = state.dataMode !== "document";
-      document.querySelectorAll("[data-reputation-sort]").forEach(function (button) {
-        button.classList.toggle("active", button.dataset.reputationSort === state.reputationSort);
-      });
       document.getElementById("leaderHeaderRow").innerHTML = columns.map(function (column) {
         return "<th" + (column.key === "rank" ? " class=\\"rank-cell\\"" : "") + ">" + escapeHtml(column.label) + "</th>";
       }).join("");
       document.getElementById("leaderRows").innerHTML = rows.map(function (row, index) {
         const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "";
-        return "<tr>" + columns.map(function (column) {
+        const mainRow = "<tr>" + columns.map(function (column) {
           if (column.key === "rank") return "<td class=\\"rank-cell\\"><span class=\\"medal\\">" + medal + "</span>" + (index + 1) + "</td>";
           if (column.key === "name") return "<td><div class=\\"location-name\\">" + escapeHtml(row.name) + "</div><div class=\\"location-meta\\">" + escapeHtml(row.meta || "") + "</div></td>";
+          if (column.type === "action") {
+            if (!row.competitorCount) return "<td><button class=\\"compare-btn\\" type=\\"button\\" disabled>No data</button></td>";
+            const active = state.competitorResidenceId === row.residenceId;
+            return "<td><button class=\\"compare-btn" + (active ? " active" : "") + "\\" data-compare-residence=\\"" + escapeHtml(row.residenceId) + "\\" type=\\"button\\">" + (active ? "Viewing" : "View") + "</button></td>";
+          }
           return "<td class=\\"table-number\\">" + formatTableValue(row[column.key], column) + "</td>";
         }).join("") + "</tr>";
+        return mainRow + renderCompetitorExpansion(row, columns.length);
       }).join("");
     }
 
+    function renderCompetitorExpansion(row, columnCount) {
+      if (state.dataMode !== "external" || state.view !== "locations" || row.residenceId !== state.competitorResidenceId) return "";
+      const comparison = competitorComparisonFor(row.residenceId);
+      const competitors = comparison?.competitors || [];
+      if (!comparison || !competitors.length) return "";
+
+      const competitorReviews = competitors.reduce(function (sum, row) { return sum + Number(row.totalReviews || 0); }, 0);
+      const rowsHtml = [{
+        name: comparison.residenceName,
+        address: row.meta || "",
+        avgRating: comparison.avgRating,
+        totalReviews: comparison.totalReviews,
+        sources: comparison.sources || [],
+        tags: ["Chartwell"],
+        self: true
+      }].concat(competitors).map(function (row) {
+        const meta = [row.address].concat(row.tags || []).filter(Boolean).join(" · ");
+        return "<tr" + (row.self ? " class=\\"self-row\\"" : "") + ">" +
+          "<td><div class=\\"location-name\\">" + escapeHtml(row.name) + "</div><div class=\\"tag-list\\">" + escapeHtml(meta) + "</div></td>" +
+          "<td class=\\"table-number\\">" + formatNumber(row.avgRating, 2) + "</td>" +
+          "<td class=\\"table-number\\">" + Number(row.totalReviews || 0).toLocaleString("en-CA") + "</td>" +
+          "<td>" + competitorSourceLabel(row) + "</td>" +
+          "</tr>";
+      }).join("");
+
+      return "<tr class=\\"competitor-expanded-row\\"><td colspan=\\"" + columnCount + "\\">" +
+        "<div class=\\"competitor-expanded\\">" +
+          "<div class=\\"competitor-head\\">" +
+            "<div><h2>Compare with competitors</h2><p>" + escapeHtml(comparison.residenceName) + " · ReviewTrackers competitor data</p></div>" +
+            "<button class=\\"compare-btn\\" data-close-competitors type=\\"button\\">Close</button>" +
+          "</div>" +
+          "<div class=\\"competitor-summary\\">" +
+            "<div class=\\"competitor-summary-item\\"><strong>" + competitors.length.toLocaleString("en-CA") + "</strong><span>Competitors</span></div>" +
+            "<div class=\\"competitor-summary-item\\"><strong>" + formatNumber(weightedAverageRating(competitors), 2) + "</strong><span>Competitor avg. rating</span></div>" +
+            "<div class=\\"competitor-summary-item\\"><strong>" + competitorReviews.toLocaleString("en-CA") + "</strong><span>Competitor reviews</span></div>" +
+          "</div>" +
+          "<div class=\\"competitor-table\\"><table><thead><tr><th>Residence</th><th>Average Rating</th><th>Reviews</th><th>Source</th></tr></thead><tbody>" + rowsHtml + "</tbody></table></div>" +
+        "</div>" +
+      "</td></tr>";
+    }
+
     function leaderboardColumns() {
-      const nameLabel = state.view === "locations" ? "Location" : "Group";
+      const nameLabel = state.view === "locations" ? "Location" : "Platform";
       if (state.dataMode === "internal") {
         return [
           { key: "rank", label: "Rank" },
@@ -1302,7 +1569,7 @@ const html = `<!doctype html>
           { key: "rank", label: "Rank" },
           { key: "name", label: nameLabel },
           { key: "residentExperience", label: "Resident Experience", suffix: " / 100", digits: 0 },
-          { key: "employerBrand", label: "Employer Brand", suffix: " / 100", digits: 0 },
+          ...(reputationUsesEmployerBrand() ? [{ key: "employerBrand", label: "Employer Brand", suffix: " / 100", digits: 0 }] : []),
           { key: "npsComponent", label: "Resident NPS", suffix: " / 100", digits: 0 },
           { key: "occupancy", label: "Occupancy", type: "percent" },
           { key: "reviewCount", label: "Reviews", digits: 0 },
@@ -1317,8 +1584,32 @@ const html = `<!doctype html>
         { key: "averageRating", label: "Average Rating", digits: 2 },
         { key: "reviewCount", label: "Reviews", digits: 0 },
         { key: "responseRate", label: "Response Rate", type: "percent" },
-        { key: "reviewTrackersScore", label: "Score", suffix: " / 100", digits: 0 }
+        { key: "reviewTrackersScore", label: "Score", suffix: " / 100", digits: 0 },
+        ...(state.view === "locations" ? [{ key: "compare", label: "Compare", type: "action" }] : [])
       ];
+    }
+
+    function reputationSortOptions(columns) {
+      const excluded = new Set(["rank", "name", "sourceCount", "compare"]);
+      return columns.filter(function (column) {
+        return !excluded.has(column.key) && column.type !== "action";
+      });
+    }
+
+    function renderReputationSortControl(columns) {
+      const sortSelect = document.getElementById("reputationSortSelect");
+      const directionSelect = document.getElementById("reputationDirectionSelect");
+      const options = reputationSortOptions(columns);
+      if (state.dataMode === "document" && !options.some(function (option) { return option.key === state.reputationSort; })) {
+        state.reputationSort = options.some(function (option) { return option.key === "documentLogicScore"; })
+          ? "documentLogicScore"
+          : options[0]?.key || "documentLogicScore";
+      }
+      sortSelect.innerHTML = options.map(function (option) {
+        return "<option value=\\"" + escapeHtml(option.key) + "\\">" + escapeHtml(option.label) + "</option>";
+      }).join("");
+      sortSelect.value = state.reputationSort;
+      directionSelect.value = state.reputationSortDirection;
     }
 
     function formatTableValue(value, column) {
@@ -1331,12 +1622,27 @@ const html = `<!doctype html>
       return { A: 4, B: 3, C: 2, D: 1 }[grade] || 0;
     }
 
+    function compareSortableValues(aValue, bValue, direction) {
+      const aHasValue = hasNumber(aValue);
+      const bHasValue = hasNumber(bValue);
+      if (!aHasValue && !bHasValue) return 0;
+      if (!aHasValue) return 1;
+      if (!bHasValue) return -1;
+      return direction === "asc" ? aValue - bValue : bValue - aValue;
+    }
+
     function sortLeaderboardRows(rows) {
       return rows.sort(function (a, b) {
-        if (state.dataMode === "document" && state.reputationSort === "confidence") {
-          const byConfidence = confidenceSortValue(b.confidence) - confidenceSortValue(a.confidence);
-          if (byConfidence) return byConfidence;
-          return (b.documentLogicScore ?? -1) - (a.documentLogicScore ?? -1);
+        if (state.dataMode === "document") {
+          if (state.reputationSort === "confidence") {
+            const byConfidence = compareSortableValues(
+              confidenceSortValue(a.confidence),
+              confidenceSortValue(b.confidence),
+              state.reputationSortDirection
+            );
+            if (byConfidence) return byConfidence;
+          }
+          return compareSortableValues(a[state.reputationSort], b[state.reputationSort], state.reputationSortDirection);
         }
         return (b.score ?? -1) - (a.score ?? -1);
       });
@@ -1350,7 +1656,9 @@ const html = `<!doctype html>
         const npsComponent = enhanced?.npsComponent ?? null;
         const employerBrand = employerBrandScore(enhanced?.employeeNpsScore ?? null);
         const documentScore = documentLogicScore(residentExperience.score, employerBrand, npsComponent);
+        const competitorComparison = competitorComparisonFor(residence.id);
         return {
+          residenceId: residence.id,
           name: residence.name,
           meta: usesInternalData() && enhanced ? [residence.city, enhanced.propertyRegion].filter(Boolean).join(" · ") : residence.city,
           propertyRegion: enhanced?.propertyRegion,
@@ -1369,6 +1677,7 @@ const html = `<!doctype html>
           reviewTrackersScore: reviewTrackersScoreFor(residence, reviews),
           averageRating: reviewSummary.averageRating,
           reviewCount: reviewSummary.reviewCount,
+          competitorCount: competitorComparison?.competitors?.length || 0,
           responseRate: residence.reviewTrackersResponseRate,
           score: state.dataMode === "document" ? documentScore : usesInternalData() ? scoreForEnhancedRow(enhanced) : reviewTrackersScoreFor(residence, reviews)
         };
@@ -1452,7 +1761,7 @@ const html = `<!doctype html>
       document.getElementById("enhancedPanelCopy").textContent = state.dataMode === "internal"
         ? "Uses matched property sheet rows for resident NPS, employee NPS, occupancy, and Survey Score."
         : state.dataMode === "document"
-          ? "Uses the Word document formula with resident reviews, Employee NPS plus Glassdoor/Indeed employer data, and Resident NPS."
+          ? "Uses the selected Reputation formula with resident reviews, Resident NPS, and Employer Brand when included."
           : "Uses matched property sheet rows with ReviewTrackers Performance Score for Total Score.";
       document.getElementById("formulaTitle").textContent = state.dataMode === "internal"
         ? "Survey Score formula"
@@ -1462,7 +1771,7 @@ const html = `<!doctype html>
       document.getElementById("formulaCopy").textContent = state.dataMode === "internal"
         ? "Average of resident NPS and employee NPS after both are normalized to 0-100."
         : state.dataMode === "document"
-          ? "Resident Experience 70% + Employer Brand 20% + Resident NPS 10%. Employer Brand averages Employee NPS with Glassdoor/Indeed."
+          ? reputationFormulaDescription() + (reputationUsesEmployerBrand() ? ". Employer Brand averages Employee NPS with Glassdoor/Indeed." : ". Employer Brand is excluded in this formula.")
           : "Average of ReviewTrackers Performance Score, resident NPS normalized to 0-100, and employee NPS normalized to 0-100.";
 
       const unmatchedList = document.getElementById("unmatchedList");
@@ -1524,6 +1833,19 @@ const html = `<!doctype html>
     });
 
     document.addEventListener("click", function (event) {
+      if (event.target.closest("[data-close-competitors]")) {
+        state.competitorResidenceId = null;
+        renderLeaderboard();
+        return;
+      }
+      const compareButton = event.target.closest("[data-compare-residence]");
+      if (compareButton) {
+        state.competitorResidenceId = state.competitorResidenceId === compareButton.dataset.compareResidence
+          ? null
+          : compareButton.dataset.compareResidence;
+        renderLeaderboard();
+        return;
+      }
       const option = event.target.closest(".dropdown-option");
       if (option) {
         const kind = option.dataset.kind;
@@ -1553,7 +1875,10 @@ const html = `<!doctype html>
       state.location = "All locations";
       state.source = "All sources";
       state.dataMode = "external";
-      state.reputationSort = "score";
+      state.reputationSort = "documentLogicScore";
+      state.reputationSortDirection = "desc";
+      state.reputationFormula = defaultReputationFormula;
+      state.competitorResidenceId = null;
       render();
     });
     document.getElementById("regionTrigger").addEventListener("click", function (event) {
@@ -1563,13 +1888,22 @@ const html = `<!doctype html>
     document.querySelectorAll("[data-mode-button]").forEach(function (button) {
       button.addEventListener("click", function () {
         state.dataMode = this.dataset.modeButton;
+        if (state.dataMode !== "external") state.competitorResidenceId = null;
         render();
       });
     });
-    document.querySelectorAll("[data-reputation-sort]").forEach(function (button) {
+    document.getElementById("reputationSortSelect").addEventListener("change", function () {
+      state.reputationSort = this.value;
+      renderLeaderboard();
+    });
+    document.getElementById("reputationDirectionSelect").addEventListener("change", function () {
+      state.reputationSortDirection = this.value;
+      renderLeaderboard();
+    });
+    document.querySelectorAll("[data-reputation-formula]").forEach(function (button) {
       button.addEventListener("click", function () {
-        state.reputationSort = this.dataset.reputationSort;
-        renderLeaderboard();
+        state.reputationFormula = this.dataset.reputationFormula;
+        render();
       });
     });
     document.getElementById("locationsTab").addEventListener("click", function () {

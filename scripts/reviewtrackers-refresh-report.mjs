@@ -69,7 +69,8 @@ function parseArgs(argv) {
     residenceMaster: "data/residence-master.json",
     propertyDataSheet: "",
     useReviewTrackersGroups: true,
-    includePerformanceScore: true
+    includePerformanceScore: true,
+    includeCompetitors: true
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -84,6 +85,7 @@ function parseArgs(argv) {
     else if (arg === "--account-id") options.accountId = next, index += 1;
     else if (arg === "--no-groups") options.useReviewTrackersGroups = false;
     else if (arg === "--no-performance-score") options.includePerformanceScore = false;
+    else if (arg === "--no-competitors") options.includeCompetitors = false;
   }
 
   return options;
@@ -414,6 +416,88 @@ async function fetchMetricsOverviewBreakdown(context, options) {
   });
 }
 
+function normalizeCompetitorSource(source) {
+  return {
+    source: sourceNameMap[source?.source] || source?.source || "",
+    avgRating: source?.avg_rating ?? null,
+    totalReviews: source?.total_reviews ?? 0,
+    urlPath: source?.url_path || "",
+    lastFetchedAt: source?.last_fetched_at || null
+  };
+}
+
+function normalizeCompetitorRow(row) {
+  return {
+    id: String(row.competitor_id || row.resource_id || row.google_place_id || row.name || ""),
+    name: row.name || "Unnamed competitor",
+    address: row.address || "",
+    avgRating: row.avg_rating ?? null,
+    totalReviews: row.total_reviews ?? 0,
+    isSuggestedCompetitor: Boolean(row.is_suggested_competitor),
+    tags: Array.isArray(row.tags) ? row.tags.filter(Boolean) : [],
+    sources: Array.isArray(row.sources) ? row.sources.map(normalizeCompetitorSource) : []
+  };
+}
+
+async function fetchCompetitors(context, options, residences) {
+  const comparableResidences = residences
+    .filter((residence) => residence.active && residence.reviewtrackersLocationId)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const batchSize = 40;
+  const comparisons = [];
+  const errors = [];
+
+  for (let index = 0; index < comparableResidences.length; index += batchSize) {
+    const batch = comparableResidences.slice(index, index + batchSize);
+    const residenceByRtxId = new Map(batch.map((residence) => [residence.reviewtrackersLocationId, residence]));
+    const params = new URLSearchParams({
+      start_date: options.publishedAfter,
+      end_date: options.publishedBefore
+    });
+    params.set("sort[by]", "avg_rating");
+    params.set("sort[order]", "desc");
+    for (const residence of batch) {
+      params.append("location_ids[]", residence.reviewtrackersLocationId);
+    }
+
+    try {
+      const payload = await fetchJson(`/intel/locations?${params.toString()}`, {
+        ...context,
+        accept: "application/json"
+      });
+      const locations = Array.isArray(payload?.locations) ? payload.locations : [];
+      for (const location of locations) {
+        const rtxId = location.rtx_id || location.resource_id;
+        const residence = residenceByRtxId.get(rtxId);
+        if (!residence) continue;
+        const competitors = Array.isArray(location.competitors) ? location.competitors.map(normalizeCompetitorRow) : [];
+        comparisons.push({
+          residenceId: residence.id,
+          reviewtrackersLocationId: residence.reviewtrackersLocationId,
+          residenceName: residence.name,
+          avgRating: location.avg_rating ?? null,
+          totalReviews: location.total_reviews ?? 0,
+          sources: Array.isArray(location.sources) ? location.sources.map(normalizeCompetitorSource) : [],
+          competitors
+        });
+      }
+    } catch (error) {
+      errors.push(error.message);
+    }
+  }
+
+  const competitorRows = comparisons.reduce((sum, comparison) => sum + comparison.competitors.length, 0);
+  return {
+    comparisons: comparisons.sort((a, b) => a.residenceName.localeCompare(b.residenceName)),
+    validation: {
+      requestedLocations: comparableResidences.length,
+      locationsWithCompetitors: comparisons.filter((comparison) => comparison.competitors.length > 0).length,
+      competitorRows,
+      errors
+    }
+  };
+}
+
 function weightedMetric(rows, field) {
   let weighted = 0;
   let weight = 0;
@@ -732,6 +816,28 @@ async function main() {
   ]);
   const reviewTrackersDashboardMetrics = buildReviewTrackersDashboardMetrics(metricsPayload, previousMetricsPayload, performanceScoresPayload);
   const aggregated = aggregateReviews(reviews, options, { locations, groups, items, performanceScores: performanceScoresPayload.rows, propertyData });
+  const competitorData = options.includeCompetitors
+    ? await fetchCompetitors(context, options, aggregated.residences).catch((error) => {
+      console.warn(`Skipping competitors lookup: ${error.message}`);
+      return {
+        comparisons: [],
+        validation: {
+          requestedLocations: aggregated.residences.filter((residence) => residence.active && residence.reviewtrackersLocationId).length,
+          locationsWithCompetitors: 0,
+          competitorRows: 0,
+          errors: [error.message]
+        }
+      };
+    })
+    : {
+      comparisons: [],
+      validation: {
+        requestedLocations: 0,
+        locationsWithCompetitors: 0,
+        competitorRows: 0,
+        errors: []
+      }
+    };
   const operatingRegionCounts = Object.fromEntries(
     [...aggregated.residences.reduce((counts, residence) => {
       const region = residence.operatingRegion || residence.region || outsideOperatingRegionLabel;
@@ -768,6 +874,7 @@ async function main() {
     residences: aggregated.residences,
     reviewSnapshots: aggregated.reviewSnapshots,
     employerSnapshots: aggregated.employerSnapshots,
+    competitorComparisons: competitorData.comparisons,
     propertyData: {
       sourceFile: propertyData.sourceFile ? path.basename(propertyData.sourceFile) : null,
       year: propertyData.year,
@@ -776,10 +883,33 @@ async function main() {
     employerBrand: aggregated.employerSnapshots,
     trustFriction: null,
     documentLogicConfig: {
+      defaultScoringModel: "full",
       weights: {
-        residentExperience: 0.7,
-        employerBrand: 0.2,
-        npsComponent: 0.1
+        residentExperience: 0.6,
+        npsComponent: 0.3,
+        employerBrand: 0.1
+      },
+      scoringModels: {
+        full: {
+          label: "Full score",
+          description: "Resident Experience 60% + Resident NPS 30% + Employer Brand 10%",
+          weights: {
+            residentExperience: 0.6,
+            npsComponent: 0.3,
+            employerBrand: 0.1
+          },
+          includeEmployerBrand: true
+        },
+        resident: {
+          label: "Resident only",
+          description: "Resident Experience 60% + Resident NPS 40%",
+          weights: {
+            residentExperience: 0.6,
+            npsComponent: 0.4,
+            employerBrand: 0
+          },
+          includeEmployerBrand: false
+        }
       },
       residenceSourceWeights: {
         Google: 1,
@@ -821,7 +951,8 @@ async function main() {
       propertyRows: propertyData.rows.length,
       propertyMatches,
       propertyNpsScored,
-      propertyMissingNps: propertyMatches - propertyNpsScored
+      propertyMissingNps: propertyMatches - propertyNpsScored,
+      competitors: competitorData.validation
     }
   };
 
@@ -837,6 +968,12 @@ async function main() {
   console.log(`ReviewTrackers groups: ${groups.length}`);
   console.log(`ReviewTrackers dashboard performance score: ${reviewTrackersDashboardMetrics.performanceScore ?? "not available"}`);
   console.log(`ReviewTrackers dashboard total reviews: ${reviewTrackersDashboardMetrics.totalReviews ?? "not available"}`);
+  console.log(`Competitor locations requested: ${reportData.validation.competitors.requestedLocations}`);
+  console.log(`Competitor locations with data: ${reportData.validation.competitors.locationsWithCompetitors}`);
+  console.log(`Competitor rows: ${reportData.validation.competitors.competitorRows}`);
+  if (reportData.validation.competitors.errors.length) {
+    console.log(`Competitor lookup errors: ${reportData.validation.competitors.errors.length}`);
+  }
   console.log(`Employer snapshots: ${aggregated.employerSnapshots.length}`);
   console.log("Operating region counts:");
   for (const [region, count] of Object.entries(operatingRegionCounts)) {
