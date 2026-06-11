@@ -8,7 +8,7 @@ const html = `<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ReviewTrackers Dashboard</title>
+  <title>Reputation rating</title>
   <style>
     :root {
       --bg: #f6f8fb;
@@ -128,7 +128,7 @@ const html = `<!doctype html>
       font-size: 22px;
       appearance: auto;
     }
-    .custom-select { position: relative; width: 246px; }
+    .custom-select, .region-placeholder { position: relative; width: 246px; }
     .custom-trigger {
       width: 100%;
       height: 57px;
@@ -152,6 +152,11 @@ const html = `<!doctype html>
       white-space: nowrap;
     }
     .custom-trigger .chevron { flex: 0 0 auto; font-size: 24px; line-height: 1; }
+    .custom-trigger.placeholder-trigger {
+      color: #7a8796;
+      background: #f7f9fc;
+      cursor: default;
+    }
     .dropdown {
       position: absolute;
       z-index: 20;
@@ -347,6 +352,13 @@ const html = `<!doctype html>
     .metric-value { margin-top: 8px; font-size: 42px; line-height: 1; font-weight: 800; }
     h2 { margin: 0; font-size: 25px; line-height: 1.1; }
     .leaderboard-layout { margin-top: 34px; }
+    .leaderboard-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
     .tabs { display: inline-flex; gap: 0; padding: 6px; border-radius: 8px; background: #dfe4ec; }
     .tab {
       min-width: 164px;
@@ -360,6 +372,31 @@ const html = `<!doctype html>
       font-weight: 800;
     }
     .tab.active { color: var(--blue); background: #fff; }
+    .sort-control {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 16px;
+      font-weight: 800;
+    }
+    .sort-control[hidden] { display: none; }
+    .sort-btn {
+      height: 42px;
+      padding: 0 14px;
+      border: 1px solid #aeb9c8;
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 800;
+    }
+    .sort-btn.active {
+      border-color: var(--chartwell);
+      color: #fff;
+      background: var(--chartwell);
+    }
     .leader-table {
       margin-top: 24px;
       overflow-x: auto;
@@ -474,10 +511,12 @@ const html = `<!doctype html>
       .metric-grid, .metric-grid.enhanced, .leaderboard-layout, .diagnostics, .formula-strip { grid-template-columns: 1fr; }
       .metric-tile { border-right: 0; border-bottom: 1px solid var(--line); }
       .filters-grid { gap: 12px; }
-      .select-box, .custom-select, .date-box { width: 100%; min-width: 0; }
+      .select-box, .custom-select, .region-placeholder, .date-box { width: 100%; min-width: 0; }
       .dropdown { width: 100%; }
       .data-mode-control { width: 100%; flex-direction: column; border-radius: var(--radius); }
       .data-mode-btn { width: 100%; justify-content: center; }
+      .leaderboard-head { align-items: stretch; }
+      .sort-control { width: 100%; flex-wrap: wrap; }
       .enhanced-head { flex-direction: column; }
       .correlation-kpi { width: 100%; text-align: left; }
       .unmatched-list ul { grid-template-columns: 1fr; }
@@ -500,29 +539,31 @@ const html = `<!doctype html>
             <path d="M5 18.5V9.25L12 4l7 5.25v9.25h-5.1v-5.8h-3.8v5.8H5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
           </svg>
         </div>
-        <h1>Dashboard</h1>
+        <h1>Reputation rating</h1>
       </div>
       <div class="actions">
         <nav class="page-switch" aria-label="Report pages">
           <a class="active" href="Brand Composite Score.html">Report</a>
           <a href="Documentation.html">Documentation</a>
         </nav>
-        <button class="outline-btn" type="button" onclick="window.print()">▣&nbsp; Print</button>
       </div>
     </header>
 
-    <section class="filters" aria-label="Dashboard filters">
+    <section class="filters" aria-label="Reputation rating filters">
       <div class="filters-head">
         <div>FILTERS</div>
         <a href="#" id="clearAll">Clear All</a>
       </div>
       <div class="filters-grid">
         <div class="custom-select" id="groupSelect">
-          <button class="custom-trigger" id="groupTrigger" type="button" aria-expanded="false"><span>All groups</span><span class="chevron">⌄</span></button>
+          <button class="custom-trigger" id="groupTrigger" type="button" aria-expanded="false"><span>All platforms</span><span class="chevron">⌄</span></button>
           <div class="dropdown" id="groupDropdown" hidden>
-            <div class="dropdown-search-wrap"><input class="dropdown-search" id="groupSearch" placeholder="Search groups..." /></div>
+            <div class="dropdown-search-wrap"><input class="dropdown-search" id="groupSearch" placeholder="Search platforms..." /></div>
             <div class="dropdown-list" id="groupOptions"></div>
           </div>
+        </div>
+        <div class="region-placeholder" id="regionSelect">
+          <button class="custom-trigger placeholder-trigger" id="regionTrigger" type="button" aria-disabled="true" tabindex="-1"><span>All regions</span><span class="chevron">⌄</span></button>
         </div>
         <div class="custom-select" id="locationSelect">
           <button class="custom-trigger" id="locationTrigger" type="button" aria-expanded="false"><span>All locations</span><span class="chevron">⌄</span></button>
@@ -539,13 +580,12 @@ const html = `<!doctype html>
         </div>
         <div class="date-pill" id="dateRangeLabel" aria-label="Report date range"></div>
         <div class="data-mode-control" role="group" aria-label="Data source mode">
-          <button class="data-mode-btn active" data-mode-button="external" type="button" aria-pressed="true">ReviewTrackers</button>
-          <button class="data-mode-btn" data-mode-button="internal" type="button" aria-pressed="false">Spreadsheet</button>
-          <button class="data-mode-btn" data-mode-button="combined" type="button" aria-pressed="false">Combined score</button>
-          <button class="data-mode-btn" data-mode-button="document" type="button" aria-pressed="false">Document Logic</button>
+          <button class="data-mode-btn active" data-mode-button="external" type="button" aria-pressed="true">Reviews</button>
+          <button class="data-mode-btn" data-mode-button="internal" type="button" aria-pressed="false">Survey</button>
+          <button class="data-mode-btn" data-mode-button="document" type="button" aria-pressed="false">Reputation score</button>
         </div>
         <div class="data-mode-note" id="dataModeNote">
-          <strong id="dataModeNoteTitle">External data:</strong> <span id="dataModeNoteBody">ReviewTrackers metrics and performance score only.</span>
+          <strong id="dataModeNoteTitle">Reviews:</strong> <span id="dataModeNoteBody">ReviewTrackers metrics and performance score only.</span>
         </div>
       </div>
     </section>
@@ -611,7 +651,7 @@ const html = `<!doctype html>
           <div>
             <div class="metric-name">Resident NPS</div>
             <div class="metric-value" id="residentNps">--</div>
-            <div class="variance">Matched spreadsheet residences</div>
+            <div class="variance">Matched survey residences</div>
           </div>
         </article>
         <article class="metric-tile" data-enhanced hidden>
@@ -619,7 +659,7 @@ const html = `<!doctype html>
           <div>
             <div class="metric-name">Employee NPS</div>
             <div class="metric-value" id="employeeNps">--</div>
-            <div class="variance">Matched spreadsheet residences</div>
+            <div class="variance">Matched survey residences</div>
           </div>
         </article>
         <article class="metric-tile" data-enhanced hidden>
@@ -643,15 +683,15 @@ const html = `<!doctype html>
           <div>
             <div class="metric-name">Employer Brand</div>
             <div class="metric-value"><span id="documentEmployerBrand">--</span>/100</div>
-            <div class="variance">Glassdoor + Indeed</div>
+            <div class="variance">Employee NPS + Glassdoor + Indeed</div>
           </div>
         </article>
         <article class="metric-tile" data-document hidden>
           <div class="status-icon neutral">−</div>
           <div>
-            <div class="metric-name">NPS Component</div>
+            <div class="metric-name">Resident NPS</div>
             <div class="metric-value"><span id="documentNpsComponent">--</span>/100</div>
-            <div class="variance">Resident + employee NPS</div>
+            <div class="variance">Resident NPS only</div>
           </div>
         </article>
         <article class="metric-tile" data-document hidden>
@@ -666,9 +706,16 @@ const html = `<!doctype html>
     </main>
 
     <section class="leaderboard-layout" aria-label="Leaderboard">
-      <div class="tabs" role="tablist" aria-label="Leaderboard view">
-        <button class="tab active" id="locationsTab" type="button">Locations</button>
-        <button class="tab" id="groupsTab" type="button">Groups</button>
+      <div class="leaderboard-head">
+        <div class="tabs" role="tablist" aria-label="Leaderboard view">
+          <button class="tab active" id="locationsTab" type="button">Locations</button>
+          <button class="tab" id="groupsTab" type="button">Groups</button>
+        </div>
+        <div class="sort-control" id="reputationSortControl" hidden>
+          <span>Sort by</span>
+          <button class="sort-btn active" data-reputation-sort="score" type="button">Reputation Score</button>
+          <button class="sort-btn" data-reputation-sort="confidence" type="button">Confidence</button>
+        </div>
       </div>
       <div class="leader-table">
         <table>
@@ -702,7 +749,7 @@ const html = `<!doctype html>
           <span id="formulaCopy">Average of ReviewTrackers Performance Score, resident NPS normalized to 0-100, and employee NPS normalized to 0-100.</span>
         </div>
         <div class="formula-card">
-          <strong>Spreadsheet source</strong>
+          <strong>Survey source</strong>
           <span id="propertySourceLabel">Property data sheet</span>
         </div>
       </div>
@@ -738,7 +785,7 @@ const html = `<!doctype html>
       npsComponent: 0.1
     }, sampleData.documentLogicConfig?.weights || {});
 
-    const state = { group: "All groups", location: "All locations", source: "All sources", view: "locations", dataMode: "external" };
+    const state = { group: "All groups", location: "All locations", source: "All sources", view: "locations", dataMode: "external", reputationSort: "score" };
 
     function normalizeSourceKey(source) {
       return String(source || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -876,7 +923,7 @@ const html = `<!doctype html>
       };
     }
 
-    function employerBrandScore() {
+    function employerReviewScore() {
       const snapshots = sampleData.employerSnapshots || sampleData.employerBrand || [];
       const totals = snapshots.reduce(function (acc, snapshot) {
         const normalizedRating = rating100(snapshot);
@@ -887,6 +934,10 @@ const html = `<!doctype html>
         return acc;
       }, { weighted: 0, weight: 0 });
       return totals.weight ? totals.weighted / totals.weight : null;
+    }
+
+    function employerBrandScore(employeeNpsScore) {
+      return averageNumbers([employerReviewScore(), employeeNpsScore]);
     }
 
     function documentLogicScore(residentExperience, employerBrand, npsComponent) {
@@ -914,13 +965,14 @@ const html = `<!doctype html>
       const reviewScore = reviewTrackersScoreFor(residence, reviews);
       const residenceReviews = reviewsForResidence(residence.id, reviews).items;
       const residentExperience = residentExperienceForReviews(residenceReviews);
-      const employerBrand = employerBrandScore();
       const residentNpsScore = npsToScore(residence.propertyData.residentNps);
       const employeeNpsScore = npsToScore(residence.propertyData.employeeNps);
       if (!hasNumber(residentNpsScore) || !hasNumber(employeeNpsScore)) return null;
+      const employerBrand = employerBrandScore(employeeNpsScore);
+      const npsComponent = residentNpsScore;
       const internalScore = averageNumbers([residentNpsScore, employeeNpsScore]);
       const totalScore = hasNumber(reviewScore) ? averageNumbers([reviewScore, residentNpsScore, employeeNpsScore]) : null;
-      const documentScore = documentLogicScore(residentExperience.score, employerBrand, internalScore);
+      const documentScore = documentLogicScore(residentExperience.score, employerBrand, npsComponent);
       return {
         residence: residence,
         propertyRegion: residence.propertyData.propertyRegion || "",
@@ -933,7 +985,7 @@ const html = `<!doctype html>
         employeeNps: residence.propertyData.employeeNps,
         residentNpsScore: residentNpsScore,
         employeeNpsScore: employeeNpsScore,
-        npsComponent: internalScore,
+        npsComponent: npsComponent,
         internalScore: internalScore,
         totalScore: totalScore,
         documentLogicScore: documentScore,
@@ -980,7 +1032,8 @@ const html = `<!doctype html>
       const internalScore = averageNumbers(enhancedRows.map(function (row) { return row.internalScore; }));
       const combinedScore = averageNumbers(enhancedRows.map(function (row) { return row.totalScore; }));
       const residentExperience = residentExperienceForReviews(reviews);
-      const employerBrand = employerBrandScore();
+      const employeeNpsScore = averageNumbers(enhancedRows.map(function (row) { return row.employeeNpsScore; }));
+      const employerBrand = employerBrandScore(employeeNpsScore);
       const npsComponent = averageNumbers(enhancedRows.map(function (row) { return row.npsComponent; }));
       const documentScore = documentLogicScore(residentExperience.score, employerBrand, npsComponent);
       return {
@@ -1019,7 +1072,7 @@ const html = `<!doctype html>
     }
 
     function modeScoreLabel() {
-      return state.dataMode === "internal" ? "Internal Score" : state.dataMode === "combined" ? "Total Score" : state.dataMode === "document" ? "Document Logic Score" : "Score";
+      return state.dataMode === "internal" ? "Survey Score" : state.dataMode === "combined" ? "Total Score" : state.dataMode === "document" ? "Reputation Score" : "Score";
     }
 
     function scoreForEnhancedRow(row) {
@@ -1074,7 +1127,7 @@ const html = `<!doctype html>
         return sourceWeightFor(review.source) > 0;
       }).map(function (review) { return review.source; }))].sort());
       setDropdown("group", groups.map(function (name) {
-        return { value: name, label: name, subtitle: name === "All groups" ? "" : groupCount(name) + " locations" };
+        return { value: name, label: name === "All groups" ? "All platforms" : name, subtitle: name === "All groups" ? "" : groupCount(name) + " locations" };
       }), state.group);
       setDropdown("source", sources.map(function (name) {
         return { value: name, label: name, subtitle: sourceCount(name) };
@@ -1168,25 +1221,25 @@ const html = `<!doctype html>
       document.getElementById("documentEmployerBrand").textContent = formatNumber(metrics.employerBrand, 0);
       document.getElementById("documentNpsComponent").textContent = formatNumber(metrics.npsComponent, 0);
       document.getElementById("documentConfidence").textContent = metrics.confidence || "--";
-      document.getElementById("performanceTitle").textContent = internalMode ? "Internal Score" : documentMode ? "Document Logic Score" : combinedMode ? "Total Score" : "Performance Score";
+      document.getElementById("performanceTitle").textContent = internalMode ? "Survey Score" : documentMode ? "Reputation Score" : combinedMode ? "Total Score" : "Performance Score";
       document.getElementById("performanceDescription").textContent = internalMode
         ? "Resident and employee NPS from the property sheet"
         : documentMode
-          ? "Resident Experience 70% + Employer Brand 20% + NPS 10%"
+          ? "Resident Experience 70% + Employer Brand 20% + Resident NPS 10%"
           : combinedMode
           ? "ReviewTrackers Performance Score + resident NPS + employee NPS"
           : "ReviewTrackers location performance score";
-      document.getElementById("totalScoreLabel").textContent = internalMode ? "Internal Score" : "Total Score";
+      document.getElementById("totalScoreLabel").textContent = internalMode ? "Survey Score" : "Total Score";
       document.getElementById("totalScoreDescription").textContent = internalMode ? "Resident NPS + employee NPS" : "ReviewTrackers + resident NPS + employee NPS";
       document.querySelectorAll("[data-external]").forEach(function (item) { item.hidden = internalMode || documentMode; });
       document.querySelectorAll("[data-enhanced]").forEach(function (item) { item.hidden = !showInternalCards || documentMode; });
       document.querySelectorAll("[data-document]").forEach(function (item) { item.hidden = !documentMode; });
       document.getElementById("dataModeNote").classList.add("active");
-      document.getElementById("dataModeNoteTitle").textContent = internalMode ? "Spreadsheet:" : documentMode ? "Document Logic:" : combinedMode ? "Combined score:" : "ReviewTrackers:";
+      document.getElementById("dataModeNoteTitle").textContent = internalMode ? "Survey:" : documentMode ? "Reputation score:" : combinedMode ? "Combined score:" : "Reviews:";
       document.getElementById("dataModeNoteBody").textContent = internalMode
-        ? "Uses spreadsheet resident NPS, employee NPS, and occupancy only."
+        ? "Uses survey resident NPS, employee NPS, and occupancy only."
         : documentMode
-          ? "Uses the Word document formula with NPS replacing Trust/Friction for V1."
+          ? "Uses the Word document formula: review experience, Employee NPS plus Glassdoor/Indeed employer signal, and Resident NPS."
           : combinedMode
           ? "Total Score uses ReviewTrackers Performance Score, resident NPS, and employee NPS."
           : "Uses ReviewTrackers metrics and performance score only.";
@@ -1200,8 +1253,13 @@ const html = `<!doctype html>
     function renderLeaderboard() {
       const residences = scopedResidences();
       const reviews = scopedReviews();
-      const rows = state.view === "locations" ? locationRows(residences, reviews) : groupRows(residences, reviews);
+      const rows = sortLeaderboardRows(state.view === "locations" ? locationRows(residences, reviews) : groupRows(residences, reviews));
       const columns = leaderboardColumns();
+      const sortControl = document.getElementById("reputationSortControl");
+      sortControl.hidden = state.dataMode !== "document";
+      document.querySelectorAll("[data-reputation-sort]").forEach(function (button) {
+        button.classList.toggle("active", button.dataset.reputationSort === state.reputationSort);
+      });
       document.getElementById("leaderHeaderRow").innerHTML = columns.map(function (column) {
         return "<th" + (column.key === "rank" ? " class=\\"rank-cell\\"" : "") + ">" + escapeHtml(column.label) + "</th>";
       }).join("");
@@ -1225,7 +1283,7 @@ const html = `<!doctype html>
           { key: "occupancy", label: "Occupancy", type: "percent" },
           { key: "residentNps", label: "Resident NPS", digits: 0 },
           { key: "employeeNps", label: "Employee NPS", digits: 0 },
-          { key: "internalScore", label: "Internal Score", suffix: " / 100", digits: 0 }
+          { key: "internalScore", label: "Survey Score", suffix: " / 100", digits: 0 }
         ];
       }
       if (state.dataMode === "combined") {
@@ -1245,12 +1303,12 @@ const html = `<!doctype html>
           { key: "name", label: nameLabel },
           { key: "residentExperience", label: "Resident Experience", suffix: " / 100", digits: 0 },
           { key: "employerBrand", label: "Employer Brand", suffix: " / 100", digits: 0 },
-          { key: "npsComponent", label: "NPS Component", suffix: " / 100", digits: 0 },
+          { key: "npsComponent", label: "Resident NPS", suffix: " / 100", digits: 0 },
           { key: "occupancy", label: "Occupancy", type: "percent" },
           { key: "reviewCount", label: "Reviews", digits: 0 },
           { key: "sourceCount", label: "Sources", digits: 0 },
           { key: "confidence", label: "Confidence", type: "text" },
-          { key: "documentLogicScore", label: "Document Logic Score", suffix: " / 100", digits: 0 }
+          { key: "documentLogicScore", label: "Reputation Score", suffix: " / 100", digits: 0 }
         ];
       }
       return [
@@ -1269,13 +1327,28 @@ const html = `<!doctype html>
       return formatNumber(value, column.digits || 0) + (hasNumber(value) ? column.suffix || "" : "");
     }
 
+    function confidenceSortValue(grade) {
+      return { A: 4, B: 3, C: 2, D: 1 }[grade] || 0;
+    }
+
+    function sortLeaderboardRows(rows) {
+      return rows.sort(function (a, b) {
+        if (state.dataMode === "document" && state.reputationSort === "confidence") {
+          const byConfidence = confidenceSortValue(b.confidence) - confidenceSortValue(a.confidence);
+          if (byConfidence) return byConfidence;
+          return (b.documentLogicScore ?? -1) - (a.documentLogicScore ?? -1);
+        }
+        return (b.score ?? -1) - (a.score ?? -1);
+      });
+    }
+
     function locationRows(residences, reviews) {
       return residences.map(function (residence) {
         const enhanced = enhancedForResidence(residence, reviews);
         const reviewSummary = reviewsForResidence(residence.id, reviews);
         const residentExperience = residentExperienceForReviews(reviewSummary.items);
-        const employerBrand = employerBrandScore();
         const npsComponent = enhanced?.npsComponent ?? null;
+        const employerBrand = employerBrandScore(enhanced?.employeeNpsScore ?? null);
         const documentScore = documentLogicScore(residentExperience.score, employerBrand, npsComponent);
         return {
           name: residence.name,
@@ -1310,7 +1383,8 @@ const html = `<!doctype html>
         const groupReviews = reviews.filter(function (review) { return groupIds.has(review.residenceId); });
         const enhancedRows = enhancedRowsFor(groupResidences, groupReviews);
         const residentExperience = residentExperienceForReviews(groupReviews);
-        const employerBrand = employerBrandScore();
+        const employeeNpsScore = averageNumbers(enhancedRows.map(function (row) { return row.employeeNpsScore; }));
+        const employerBrand = employerBrandScore(employeeNpsScore);
         const npsComponent = averageNumbers(enhancedRows.map(function (row) { return row.npsComponent; }));
         const documentScore = documentLogicScore(residentExperience.score, employerBrand, npsComponent);
         const score = usesInternalData()
@@ -1371,24 +1445,24 @@ const html = `<!doctype html>
       document.getElementById("correlationLabel").textContent = "Occupancy vs. " + modeScoreLabel() + " · " + correlationDescription(correlation) + " · " + correlationRows.length.toLocaleString("en-CA") + " residences";
       document.getElementById("propertySourceLabel").textContent = propertySourceLabel();
       document.getElementById("enhancedPanelTitle").textContent = state.dataMode === "internal"
-        ? "Internal Data Analysis"
+        ? "Survey Data Analysis"
         : state.dataMode === "document"
-          ? "Document Logic Analysis"
+          ? "Reputation Score Analysis"
           : "Combined Data Analysis";
       document.getElementById("enhancedPanelCopy").textContent = state.dataMode === "internal"
-        ? "Uses matched property sheet rows for resident NPS, employee NPS, occupancy, and Internal Score."
+        ? "Uses matched property sheet rows for resident NPS, employee NPS, occupancy, and Survey Score."
         : state.dataMode === "document"
-          ? "Uses the Word document formula with corporate employer data and NPS replacing Trust/Friction for V1."
+          ? "Uses the Word document formula with resident reviews, Employee NPS plus Glassdoor/Indeed employer data, and Resident NPS."
           : "Uses matched property sheet rows with ReviewTrackers Performance Score for Total Score.";
       document.getElementById("formulaTitle").textContent = state.dataMode === "internal"
-        ? "Internal Score formula"
+        ? "Survey Score formula"
         : state.dataMode === "document"
-          ? "Document Logic formula"
+          ? "Reputation Score formula"
           : "Total Score formula";
       document.getElementById("formulaCopy").textContent = state.dataMode === "internal"
         ? "Average of resident NPS and employee NPS after both are normalized to 0-100."
         : state.dataMode === "document"
-          ? "Resident Experience 70% + Employer Brand 20% + NPS Component 10%."
+          ? "Resident Experience 70% + Employer Brand 20% + Resident NPS 10%. Employer Brand averages Employee NPS with Glassdoor/Indeed."
           : "Average of ReviewTrackers Performance Score, resident NPS normalized to 0-100, and employee NPS normalized to 0-100.";
 
       const unmatchedList = document.getElementById("unmatchedList");
@@ -1466,6 +1540,10 @@ const html = `<!doctype html>
         render();
         return;
       }
+      if (event.target.closest(".placeholder-select")) {
+        closeDropdowns();
+        return;
+      }
       if (!event.target.closest(".custom-select")) closeDropdowns();
     });
 
@@ -1475,12 +1553,23 @@ const html = `<!doctype html>
       state.location = "All locations";
       state.source = "All sources";
       state.dataMode = "external";
+      state.reputationSort = "score";
       render();
+    });
+    document.getElementById("regionTrigger").addEventListener("click", function (event) {
+      event.preventDefault();
+      closeDropdowns();
     });
     document.querySelectorAll("[data-mode-button]").forEach(function (button) {
       button.addEventListener("click", function () {
         state.dataMode = this.dataset.modeButton;
         render();
+      });
+    });
+    document.querySelectorAll("[data-reputation-sort]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        state.reputationSort = this.dataset.reputationSort;
+        renderLeaderboard();
       });
     });
     document.getElementById("locationsTab").addEventListener("click", function () {

@@ -790,7 +790,9 @@ async function main() {
         Caring: 0.6
       },
       employerSources: ["Glassdoor", "Indeed"],
+      employerBrandSignals: ["employeeNpsScore", "Glassdoor", "Indeed"],
       npsScale: "-100_to_100",
+      npsComponent: "residentNpsScore",
       ratingFormula: "rating_100 = (rating_raw / rating_scale) * 100",
       volumeWeightFormula: "ln(1 + review_count)",
       recencyWeights: [
@@ -804,7 +806,7 @@ async function main() {
         { grade: "C", criteria: "20-59 reviews or 1 source" },
         { grade: "D", criteria: "<20 reviews" }
       ],
-      trustFrictionSubstitute: "npsComponent"
+      trustFrictionSubstitute: "residentNpsScore"
     },
     monthlyTrend: buildMonthlyTrend(reviews, options),
     validation: {

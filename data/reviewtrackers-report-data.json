@@ -15319,7 +15319,13 @@
       "Glassdoor",
       "Indeed"
     ],
+    "employerBrandSignals": [
+      "employeeNpsScore",
+      "Glassdoor",
+      "Indeed"
+    ],
     "npsScale": "-100_to_100",
+    "npsComponent": "residentNpsScore",
     "ratingFormula": "rating_100 = (rating_raw / rating_scale) * 100",
     "volumeWeightFormula": "ln(1 + review_count)",
     "recencyWeights": [
@@ -15354,7 +15360,7 @@
         "criteria": "<20 reviews"
       }
     ],
-    "trustFrictionSubstitute": "npsComponent"
+    "trustFrictionSubstitute": "residentNpsScore"
   },
   "monthlyTrend": [
     {
